@@ -70,11 +70,14 @@ describe("scoreCandidate", () => {
     expect(closeResult.score).toBeGreaterThan(distantResult.score)
   })
 
-  it("attributes the full weighted share to each signal when it is individually maxed", () => {
+  it("attributes each configured weight to a maxed signal, adjusted by exploration for interests", () => {
     const activeUser = makeActiveUser()
 
     const interestsMaxed = scoreCandidate(activeUser, makeCandidate({ hobbies: ["hiking", "boardgames"], interests: ["coffee", "music"] }))
-    expect(interestsMaxed.breakdown.sharedInterests).toBeCloseTo(MATCH_WEIGHTS.sharedInterests, 5)
+    expect(interestsMaxed.breakdown.sharedInterests).toBeCloseTo(
+      MATCH_WEIGHTS.sharedInterests * EXPLORATION_POLICY.initial.familiar,
+      5
+    )
 
     const availabilityMaxed = scoreCandidate(activeUser, makeCandidate(), { availabilityOverlapRatio: 1 })
     expect(availabilityMaxed.breakdown.availabilityOverlap).toBeCloseTo(MATCH_WEIGHTS.availabilityOverlap, 5)
@@ -106,6 +109,25 @@ describe("scoreCandidate", () => {
     })
 
     expect(result.reasons.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it("changes interest scoring after three completed meetups to increase exploration", () => {
+    const familiarCandidate = makeCandidate({
+      hobbies: ["hiking", "boardgames"],
+      interests: ["coffee", "music"],
+    })
+    const exploratoryCandidate = makeCandidate({
+      hobbies: ["pottery"],
+      interests: ["skydiving"],
+    })
+
+    const initialFamiliar = scoreCandidate(makeActiveUser({}, 0), familiarCandidate)
+    const experiencedFamiliar = scoreCandidate(makeActiveUser({}, 3), familiarCandidate)
+    const initialExploratory = scoreCandidate(makeActiveUser({}, 0), exploratoryCandidate)
+    const experiencedExploratory = scoreCandidate(makeActiveUser({}, 3), exploratoryCandidate)
+
+    expect(experiencedFamiliar.breakdown.sharedInterests).toBeLessThan(initialFamiliar.breakdown.sharedInterests)
+    expect(experiencedExploratory.breakdown.sharedInterests).toBeGreaterThan(initialExploratory.breakdown.sharedInterests)
   })
 
   it("never lets the total score exceed 1 or drop below 0", () => {

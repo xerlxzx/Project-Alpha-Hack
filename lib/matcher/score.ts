@@ -1,6 +1,3 @@
-// `areaLat`/`areaLng` are being added to `Preferences` by a parallel-session
-// migration (0002) — declared locally here ahead of that type landing.
-// Nothing is renamed on `Preferences`, so this unifies cleanly once it does.
 import type { Preferences, Profile } from "@/lib/types"
 import { EXPLORATION_POLICY, MATCH_WEIGHTS } from "@/lib/config"
 
@@ -10,9 +7,8 @@ export interface ScoreResult {
   reasons: string[]
 }
 
-type GeoPreferences = { areaLat?: number | null; areaLng?: number | null }
-type ActiveUser = Profile & Preferences & GeoPreferences & { completedMeetups: number }
-type Candidate = Profile & Preferences & GeoPreferences
+type ActiveUser = Profile & Preferences & { completedMeetups: number }
+type Candidate = Profile & Preferences
 
 export interface ScoreContext {
   candidatePriorFeedback?: number
@@ -68,10 +64,13 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 }
 
 function scoreSharedInterests(activeUser: ActiveUser, candidate: Candidate): number {
-  return jaccard(
+  const familiarScore = jaccard(
     [...activeUser.interests, ...activeUser.hobbies],
     [...candidate.interests, ...candidate.hobbies]
   )
+  const policy = explorationFactor(activeUser.completedMeetups)
+  const exploratoryScore = 1 - familiarScore
+  return policy.familiar * familiarScore + policy.exploratory * exploratoryScore
 }
 
 function scoreAvailabilityOverlap(ctx?: ScoreContext): number {
