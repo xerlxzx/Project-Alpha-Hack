@@ -1,12 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { Select } from "@base-ui/react/select";
-import { CalendarDays, Check, ChevronDown, Clock3, MapPin, WalletCards, type LucideIcon } from "lucide-react";
+import { CalendarDays, ChevronDown, Clock3, MapPin, WalletCards, type LucideIcon } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
+import { SelectField } from "@/components/SelectField";
 import { cn } from "@/lib/utils";
 import type { MoreFields, OnboardingState } from "@/components/onboarding/types";
+import {
+  TRAVEL_OPTIONS,
+  BUDGET_OPTIONS,
+  LANGUAGE_OPTIONS,
+  GENDER_OPTIONS,
+  ACCESSIBILITY_OPTIONS,
+  SOCIAL_ENERGY_OPTIONS,
+  type NumberOption,
+  type TextOption,
+} from "@/lib/preference-options";
 
 export interface PreferencesStepProps {
   value: Pick<
@@ -16,29 +26,7 @@ export interface PreferencesStepProps {
   onChange: (patch: Partial<OnboardingState>) => void;
 }
 
-interface Option {
-  value: number;
-  label: string;
-}
-
-const TRAVEL_OPTIONS: Option[] = [
-  { value: 2, label: "2 km" },
-  { value: 5, label: "5 km" },
-  { value: 10, label: "10 km" },
-  { value: 15, label: "15 km" },
-  { value: 25, label: "25 km" },
-  { value: -1, label: "No preference" },
-];
-
-const BUDGET_OPTIONS: Option[] = [
-  { value: 0, label: "Free" },
-  { value: 10, label: "$10" },
-  { value: 25, label: "$25" },
-  { value: 50, label: "$50" },
-  { value: 100, label: "$100+" },
-];
-
-const DURATION_OPTIONS: Option[] = [
+const DURATION_OPTIONS: NumberOption[] = [
   { value: 1, label: "1h" },
   { value: 2, label: "2h" },
   { value: 3, label: "3h" },
@@ -59,7 +47,7 @@ function AppleWheel({
 }: {
   label: string;
   icon: LucideIcon;
-  options: Option[];
+  options: NumberOption[];
   value: number;
   onSelect: (value: number) => void;
 }) {
@@ -158,114 +146,12 @@ function AppleWheel({
   );
 }
 
-interface TextOption {
-  value: string;
-  label: string;
-}
-
-// The first option of each list stores "" so it saves as NULL. Accessibility is
-// an exact-match matching gate (accessibilityCompatible in lib/matcher): a
-// non-empty "none" string would fence the user off from everyone with no need.
-const LANGUAGE_OPTIONS: TextOption[] = [
-  { value: "", label: "No preference" },
-  { value: "English", label: "English" },
-  { value: "Mandarin", label: "Mandarin" },
-  { value: "Cantonese", label: "Cantonese" },
-  { value: "Arabic", label: "Arabic" },
-  { value: "Vietnamese", label: "Vietnamese" },
-  { value: "Spanish", label: "Spanish" },
-  { value: "Hindi", label: "Hindi" },
-  { value: "Korean", label: "Korean" },
-  { value: "Japanese", label: "Japanese" },
-  { value: "Greek", label: "Greek" },
-  { value: "Italian", label: "Italian" },
-];
-
-const GENDER_OPTIONS: TextOption[] = [
-  { value: "", label: "No preference" },
-  { value: "Male", label: "Male" },
-  { value: "Female", label: "Female" },
-];
-
-const ACCESSIBILITY_OPTIONS: TextOption[] = [
-  { value: "", label: "No requirements" },
-  { value: "Step-free access", label: "Step-free access" },
-  { value: "Wheelchair access", label: "Wheelchair access" },
-  { value: "Hearing support", label: "Hearing support" },
-  { value: "Vision support", label: "Vision support" },
-];
-
-const SOCIAL_ENERGY_OPTIONS: TextOption[] = [
-  { value: "", label: "No preference" },
-  { value: "low", label: "Low-key" },
-  { value: "medium", label: "Balanced" },
-  { value: "high", label: "High-energy" },
-];
-
 const GROUP_SIZE_OPTIONS: TextOption[] = [
   { value: "3", label: "3 people" },
   { value: "4", label: "4 people" },
   { value: "5", label: "5 people" },
   { value: "6", label: "6 people" },
 ];
-
-/**
- * Dropdown built on Base UI Select, styled to match the text Input. Values are
- * plain strings; the empty-string option is the neutral default and saves NULL.
- */
-function SelectField({
-  label,
-  options,
-  value,
-  onSelect,
-}: {
-  label: string;
-  options: TextOption[];
-  value: string;
-  onSelect: (value: string) => void;
-}) {
-  const labelFor = (v: string) => options.find((o) => o.value === v)?.label ?? options[0]?.label;
-
-  return (
-    <div className="flex flex-col gap-2">
-      <label className="text-sm text-muted-foreground">{label}</label>
-      <Select.Root value={value} onValueChange={(next) => onSelect(next ?? "")}>
-        <Select.Trigger
-          className={cn(
-            "flex h-12 w-full items-center justify-between gap-2 rounded-full border border-input bg-transparent px-5 text-base transition-colors outline-none",
-            "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-[popup-open]:border-ring dark:bg-input/30"
-          )}
-        >
-          <Select.Value>{(v: string) => labelFor(v)}</Select.Value>
-          <Select.Icon>
-            <ChevronDown className="size-4 text-muted-foreground" />
-          </Select.Icon>
-        </Select.Trigger>
-        <Select.Portal>
-          <Select.Positioner className="z-50 outline-none" sideOffset={6} alignItemWithTrigger={false}>
-            <Select.Popup className="max-h-[min(20rem,var(--available-height))] min-w-[var(--anchor-width)] overflow-y-auto rounded-2xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lg shadow-black/30 outline-none">
-              {options.map((opt) => (
-                <Select.Item
-                  key={opt.value || "none"}
-                  value={opt.value}
-                  className={cn(
-                    "flex cursor-default select-none items-center justify-between gap-3 rounded-full py-2.5 pl-4 pr-3 text-base outline-none",
-                    "data-[highlighted]:bg-muted data-[selected]:font-medium"
-                  )}
-                >
-                  <Select.ItemText>{opt.label}</Select.ItemText>
-                  <Select.ItemIndicator>
-                    <Check className="size-4 text-[var(--accent)]" />
-                  </Select.ItemIndicator>
-                </Select.Item>
-              ))}
-            </Select.Popup>
-          </Select.Positioner>
-        </Select.Portal>
-      </Select.Root>
-    </div>
-  );
-}
 
 export function PreferencesStep({ value, onChange }: PreferencesStepProps) {
   const [moreOpen, setMoreOpen] = React.useState(false);

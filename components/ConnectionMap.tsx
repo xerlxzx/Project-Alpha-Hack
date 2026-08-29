@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/current-user"
 import { getAdminSupabase, getServerSupabase } from "@/lib/supabase/server"
+import { GlassPanel } from "@/components/GlassPanel"
 import { cn } from "@/lib/utils"
 
 // Private map linking the current user to friends through shared meetups.
@@ -117,11 +118,11 @@ export async function ConnectionMap({ friends, selfLabel = "You", className }: C
   const data = friends ?? (await loadFriendsForCurrentUser())
 
   return (
-    <section
-      className={cn(
-        "rounded-2xl border border-border bg-card p-5 text-card-foreground",
-        className
-      )}
+    <GlassPanel
+      role="region"
+      withTextBacking
+      backingClassName="bg-surface/60 dark:bg-surface/40"
+      className={cn("p-5", className)}
       aria-label="Your private connection map"
     >
       <header className="flex items-start justify-between gap-3">
@@ -255,6 +256,6 @@ export async function ConnectionMap({ friends, selfLabel = "You", className }: C
           </ul>
         </>
       )}
-    </section>
+    </GlassPanel>
   )
 }
