@@ -1,7 +1,5 @@
 import Link from "next/link"
 
-import { cn } from "@/lib/utils"
-
 export interface ActivityPassportProps {
   thisWeek: { completed: number; goal: number }
   streak: number
@@ -41,10 +39,7 @@ export function ActivityPassport({
   }
 
   return (
-    <section
-      className={cn("rounded-2xl border border-border bg-card p-6 text-card-foreground", className)}
-      aria-label="Activity Passport"
-    >
+    <section className={className} aria-label="Activity Passport">
       <h2 className="font-display text-lg text-foreground">Activity Passport</h2>
 
       <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4">

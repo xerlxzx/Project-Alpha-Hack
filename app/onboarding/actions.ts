@@ -4,8 +4,9 @@ import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 
 import { GEMINI_MODEL, getEnv } from "@/lib/config";
-import { getAdminSupabase, getServerSupabase } from "@/lib/supabase/server";
-import { getCurrentUser, type CurrentUser } from "@/lib/current-user";
+import { getAdminSupabase } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/current-user";
+import { getWriteClient, ensurePublicUserRow, errorMessage } from "@/lib/profile-write";
 
 const PHOTO_BUCKET = "profile-photos";
 
@@ -14,65 +15,6 @@ const FREE_TEXT_MAX_LEN = 500;
 const TagsSchema = z.object({
   tags: z.array(z.string().min(1).max(40)).max(10),
 });
-
-/**
- * The client to write profile/preferences data with, for a user already
- * resolved via getCurrentUser(), never from client-supplied input. A real
- * session uses the RLS-enforced server client (auth.uid() = resolved id, so
- * the owner-only policies pass); the demo identity has no real session, so
- * RLS would reject it. The admin client handles
- * that path (see lib/current-user.ts).
- */
-async function getWriteClient(user: CurrentUser) {
-  return user.isDemo ? getAdminSupabase() : await getServerSupabase();
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error) return error.message;
-  if (
-    error &&
-    typeof error === "object" &&
-    "message" in error &&
-    typeof error.message === "string"
-  ) {
-    return error.message;
-  }
-  return fallback;
-}
-
-/**
- * Ensure the authenticated identity has the public.users parent row required
- * by profiles/preferences. This repairs accounts created by Supabase's admin
- * magic-link flow on projects where the demo seed has not been rerun.
- */
-async function ensurePublicUserRow(user: CurrentUser): Promise<void> {
-  const admin = getAdminSupabase();
-  const { data: existing, error: lookupError } = await admin
-    .from("users")
-    .select("id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (lookupError) throw lookupError;
-  if (existing) return;
-
-  const { data, error: authError } = await admin.auth.admin.getUserById(user.id);
-  if (authError) throw authError;
-
-  const email = data.user?.email;
-  if (!email) throw new Error("The signed-in account has no email address.");
-
-  const { error: insertError } = await admin.from("users").upsert(
-    {
-      id: user.id,
-      university_email: email,
-      is_verified: Boolean(data.user.email_confirmed_at),
-      is_over_18: true,
-    },
-    { onConflict: "id" }
-  );
-  if (insertError) throw insertError;
-}
 
 function dedupeTags(tags: string[]): string[] {
   const seen = new Set<string>();

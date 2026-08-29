@@ -2,6 +2,7 @@
 
 import * as React from "react"
 
+import { GlassPanel } from "@/components/GlassPanel"
 import { cn } from "@/lib/utils"
 
 export interface ShareCardProps {
@@ -32,11 +33,11 @@ export function ShareCard({ completed, goal, streak, className }: ShareCardProps
   }
 
   return (
-    <section
-      className={cn(
-        "flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 text-center text-card-foreground",
-        className
-      )}
+    <GlassPanel
+      role="region"
+      withTextBacking
+      backingClassName="bg-surface/60 dark:bg-surface/40"
+      className={cn("flex flex-col items-center gap-3 p-6 text-center", className)}
       aria-label="Shareable Project Alpha recap"
     >
       <p className="font-display text-xl text-foreground">Project Alpha</p>
@@ -51,6 +52,6 @@ export function ShareCard({ completed, goal, streak, className }: ShareCardProps
       >
         {copied ? "Copied" : "Copy recap"}
       </button>
-    </section>
+    </GlassPanel>
   )
 }

@@ -40,6 +40,10 @@ export interface Preferences {
   weeklyGoal: number | null;
   areaLat?: number | null;
   areaLng?: number | null;
+  /** Preference flags only -- no push notification delivery exists yet. */
+  notifyMatchFound?: boolean;
+  notifyMeetupReminders?: boolean;
+  notifyWeeklySummary?: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -13,6 +13,8 @@ import { MomentumRing } from "@/components/MomentumRing"
 import { ActivityPassport } from "@/components/ActivityPassport"
 import { ConnectionMap } from "@/components/ConnectionMap"
 import { ShareCard } from "@/components/ShareCard"
+import { ProfileHeader } from "@/components/ProfileHeader"
+import { GlassPanel } from "@/components/GlassPanel"
 
 interface MomentumEventRow {
   id: string
@@ -54,14 +56,26 @@ export default async function ProfilePage() {
   const supabase = currentUser.isDemo ? getAdminSupabase() : await getServerSupabase()
   const userId = currentUser.id
 
-  const [{ data: eventRows }, { data: prefRow }, { data: badgeRows }] = await Promise.all([
-    supabase
-      .from("momentum_events")
-      .select("id, user_id, activity_id, week, completed_at, hours, created_at")
-      .eq("user_id", userId),
-    supabase.from("preferences").select("weekly_goal").eq("user_id", userId).maybeSingle(),
-    supabase.from("badges").select("code").eq("user_id", userId),
-  ])
+  const [{ data: eventRows }, { data: profileRow }, { data: prefRow }, { data: badgeRows }] =
+    await Promise.all([
+      supabase
+        .from("momentum_events")
+        .select("id, user_id, activity_id, week, completed_at, hours, created_at")
+        .eq("user_id", userId),
+      supabase
+        .from("profiles")
+        .select("first_name, photo_url, age_range, university, course_year")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      supabase
+        .from("preferences")
+        .select(
+          "weekly_goal, travel_km, budget_aud, interests, gender_pref, language_pref, accessibility, social_energy, notify_match_found, notify_meetup_reminders, notify_weekly_summary"
+        )
+        .eq("user_id", userId)
+        .maybeSingle(),
+      supabase.from("badges").select("code").eq("user_id", userId),
+    ])
 
   const events = (eventRows ?? []).map(toMomentumEvent)
   const weeklyGoal = prefRow?.weekly_goal ?? 0
@@ -92,32 +106,59 @@ export default async function ProfilePage() {
   const passport = passportSummary(enrichedEvents)
   const totalHours = events.reduce((sum, event) => sum + (event.hours ?? 0), 0)
 
+  const profile = {
+    firstName: profileRow?.first_name ?? "You",
+    photoUrl: profileRow?.photo_url ?? null,
+    ageRange: profileRow?.age_range ?? null,
+    university: profileRow?.university ?? "",
+    courseYear: profileRow?.course_year ?? null,
+  }
+
+  const preferences = {
+    weeklyGoal: weeklyGoal > 0 ? weeklyGoal : 3,
+    travelKm: prefRow?.travel_km ?? null,
+    budgetAud: prefRow?.budget_aud ?? null,
+    interests: prefRow?.interests ?? [],
+    genderPref: prefRow?.gender_pref ?? null,
+    languagePref: prefRow?.language_pref ?? null,
+    accessibility: prefRow?.accessibility ?? null,
+    socialEnergy: prefRow?.social_energy ?? null,
+    notifyMatchFound: prefRow?.notify_match_found ?? true,
+    notifyMeetupReminders: prefRow?.notify_meetup_reminders ?? true,
+    notifyWeeklySummary: prefRow?.notify_weekly_summary ?? false,
+  }
+
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-8 px-5 py-10">
-      <header className="flex flex-col items-center gap-1 text-center">
-        <p className="text-sm text-muted-foreground">Profile</p>
-        <h1 className="font-display text-2xl text-foreground">This week&apos;s progress</h1>
-      </header>
+    <main className="mx-auto flex w-full max-w-md flex-col gap-6 px-5 py-10">
+      <ProfileHeader profile={profile} preferences={preferences} isDemo={currentUser.isDemo} />
 
-      <MomentumRing
-        completed={thisWeek.completed}
-        goal={thisWeek.goal}
-        label="Activities this week"
-        streak={streak}
-        badges={badgeCodes}
-        className="mx-auto"
-      />
+      <GlassPanel
+        role="region"
+        withTextBacking
+        backingClassName="bg-surface/60 dark:bg-surface/40"
+        aria-label="This week's progress"
+        className="flex flex-col items-center gap-6 p-6"
+      >
+        <MomentumRing
+          completed={thisWeek.completed}
+          goal={thisWeek.goal}
+          label="Activities this week"
+          streak={streak}
+          badges={badgeCodes}
+        />
 
-      <ActivityPassport
-        thisWeek={thisWeek}
-        streak={streak}
-        totalHours={totalHours > 0 ? totalHours : null}
-        categoriesTried={passport.categoriesTried}
-        placesExplored={passport.placesExplored}
-        totalActivities={passport.totalActivities}
-        level={passport.level}
-        badges={badgeCodes}
-      />
+        <ActivityPassport
+          thisWeek={thisWeek}
+          streak={streak}
+          totalHours={totalHours > 0 ? totalHours : null}
+          categoriesTried={passport.categoriesTried}
+          placesExplored={passport.placesExplored}
+          totalActivities={passport.totalActivities}
+          level={passport.level}
+          badges={badgeCodes}
+          className="w-full border-t border-border pt-6"
+        />
+      </GlassPanel>
 
       <ConnectionMap />
 
