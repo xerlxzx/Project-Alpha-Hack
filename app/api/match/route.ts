@@ -1,20 +1,16 @@
-// POST /api/match — PRD §16. Deterministic group matching only: gates and
-// scoring (lib/matcher) decide eligibility/ranking, never an LLM. Venue
-// selection is explicitly out of scope here (PRD §9.8) — it runs later,
-// against an accepted group, as its own route.
+// POST /api/match performs deterministic group matching. Gates and scoring via
+// lib/matcher; venue selection runs separately after the group confirms.
 import { getAdminSupabase } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/current-user"
 import { buildMatch, describeGenderMix } from "@/lib/matcher/match"
 import { loadMatchInputs, type MatchPoolMember, type RequestOverrides } from "@/lib/matcher/loadPool"
 
-// Who acts as "the active user" comes from lib/current-user.ts's session ->
-// seeded-demo-user fallback, never from the request body — a client-supplied
-// user id would let any caller impersonate any of the 12 seeded people and
-// create meetups in their name.
+// Active user from getCurrentUser() (session or demo fallback).
+// Never read a user ID from the request body.
 type MatchRequestBody = RequestOverrides
 
-// PRD §9.10 pre-acceptance disclosure — ONLY these fields. No names, photos,
-// contact info, exact location, reliability, or reports.
+// Pre-acceptance disclosure fields only. No names, photos, contact info,
+// exact location, reliability, or reports.
 interface AnonymisedMember {
   verified: boolean
   ageRange: string | null

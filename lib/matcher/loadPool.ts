@@ -1,10 +1,5 @@
-// Loads the seeded Supabase pool and maps DB rows (snake_case) into the
-// buildMatch input shapes (camelCase + the runtime flags gates/score need).
-// Read access here intentionally uses the admin client: matching needs full
-// cross-user visibility into strangers' preferences/availability, which the
-// 0001 migration's owner-only RLS policies never grant to an authenticated
-// user — there is no non-admin path that can answer "who is a candidate for
-// this active user" at all.
+// Maps seeded Supabase rows into buildMatch inputs.
+// Admin client: owner-only RLS cannot list other users for matching.
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { AvailabilityMode, AvailabilityWindow, Preferences, Profile } from "@/lib/types"
 
@@ -208,10 +203,8 @@ function overrideAvailability(userId: string, stored: AvailabilityWindow[], over
   }))
 }
 
-// A candidate is safety-prohibited once a report about them has escalated to
-// the private review state (PRD §10: "Multiple or serious reports trigger a
-// private review state"). Reports carry no participant-facing SELECT policy
-// at all, so this only works via the admin client.
+// Excludes candidates under private review. Reports require the admin client
+// because participants have no SELECT policy.
 async function fetchSafetyProhibitedIds(supabase: SupabaseClient, userIds: string[]): Promise<Set<string>> {
   if (userIds.length === 0) return new Set()
   const { data, error } = await supabase
@@ -223,9 +216,8 @@ async function fetchSafetyProhibitedIds(supabase: SupabaseClient, userIds: strin
   return new Set((data ?? []).map((row) => row.reported as string))
 }
 
-// Reliability is private (PRD §9.12/§10) — read via the admin client only,
-// never exposed in the route's response. `user_reliability.score` is 0..100;
-// scoreCandidate wants 0..1.
+// Reliability is private. Read via the admin client, never exposed in the route's response.
+// `user_reliability.score` is 0..100; scoreCandidate wants 0..1.
 async function fetchReliabilityById(supabase: SupabaseClient, userIds: string[]): Promise<Map<string, number>> {
   if (userIds.length === 0) return new Map()
   const { data, error } = await supabase
@@ -236,11 +228,8 @@ async function fetchReliabilityById(supabase: SupabaseClient, userIds: string[])
   return new Map((data ?? []).map((row) => [row.user_id as string, (row.score as number) / 100]))
 }
 
-// Previous-feedback signal: share of feedback a candidate has received
-// (across all their past meetups) that was positive (`meet_again` or a
-// "great_group" reaction). Candidates with no feedback history are left out
-// of the map so scoreCandidate falls back to its own neutral default rather
-// than us fabricating a 0.
+// Share of received feedback marked `meet_again` or `great_group`. Omit
+// candidates without history so scoreCandidate uses its neutral default.
 async function fetchPriorFeedbackById(supabase: SupabaseClient, userIds: string[]): Promise<Map<string, number>> {
   if (userIds.length === 0) return new Map()
   const { data, error } = await supabase

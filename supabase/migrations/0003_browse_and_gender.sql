@@ -1,35 +1,14 @@
--- Momentum — public-browse RLS policy + gender identity field (Task 1.5)
+-- Momentum public-browse RLS and gender identity (Task 1.5)
 --
--- 1. Closes the gap flagged in Planning/sdd/reports/task-6.1-report.md:
---    `meetups`' only SELECT policy (0001's meetups_select_member_or_creator)
---    is scoped to a meetup's creator or an existing member, so there was no
---    way for a verified user to browse OTHER users' public "forming"
---    meetups — exactly what PRD §9.14's create/browse flow needs. Adds a
---    genuine browse policy, plus a matching meetup_members read policy so a
---    browsing client can compute "N/size going" without the admin client.
+-- 1. Adds the PRD §9.14 browse policy missing from 0001, plus member reads
+--    needed to compute "N/size going."
 --
---    Note on the predicate: browsability is status = 'forming' AND
---    created_by is not null — BOTH conditions, not OR. Either disjunct alone
---    over-exposes:
---      - `created_by is not null` alone would make every user-created
---        meetup — including confirmed/completed ones with a real
---        membership list — permanently world-readable to any authenticated
---        user, once it's ever been public even briefly.
---      - `status = 'forming'` alone would also expose SYSTEM-generated
---        forming groups (matched-but-not-yet-accepted candidates) to every
---        authenticated user, before the group has confirmed — a direct
---        violation of PRD §9.10's pre-acceptance disclosure staging, which
---        exists precisely to keep an unconfirmed match's group private
---        until quorum accepts.
---    A meetup only needs public visibility while it's an open, joinable,
---    user-created listing; anything else falls back to the existing
---    member/creator-only policy from 0001.
+--    Both predicates are required. `created_by is not null` alone exposes
+--    completed membership lists. `status = 'forming'` alone exposes private
+--    system-generated groups before PRD §9.10 quorum.
 --
--- 2. Adds `preferences.gender` — the user's own gender identity, distinct
---    from the existing `gender_pref` (their filter on *others'* gender).
---    Needed so PRD §9.10's pre-acceptance "gender mix" disclosure can be
---    computed honestly instead of the matcher's current "not tracked"
---    placeholder.
+-- 2. Adds `preferences.gender` for the PRD §9.10 gender-mix disclosure.
+--    `gender_pref` remains the filter on other users.
 
 create policy "meetups_select_browsable"
 on public.meetups for select

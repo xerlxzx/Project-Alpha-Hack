@@ -7,7 +7,7 @@ import { runVenueAgent, type GroupProfile } from "@/lib/venue-agent/agent"
 
 const RequestBodySchema = z.object({ meetupId: z.string() })
 
-// PRD §9.8 fallbacks for when a member hasn't set a preference at all.
+// Fallbacks for members without a stored preference.
 const DEFAULT_BUDGET_AUD = 20
 const DEFAULT_TRAVEL_KM = 10
 
@@ -21,10 +21,8 @@ interface PreferenceRow {
   area_lng: number | null
 }
 
-// Builds the venue agent's GroupProfile from a meetup's real members (PRD
-// §9.8 inputs). Exported so the reroll route (Task 3.4's other file) can
-// reuse it instead of duplicating the aggregation — both files are owned by
-// this task.
+// Builds the venue agent's GroupProfile from a meetup's members.
+// Exported so the reroll route can reuse it.
 export async function buildGroupProfileForMeetup(meetupId: string): Promise<GroupProfile> {
   const supabase = getAdminSupabase()
 
@@ -66,8 +64,7 @@ export async function buildGroupProfileForMeetup(meetupId: string): Promise<Grou
 
   const prefRows = (preferences ?? []) as PreferenceRow[]
 
-  // PRD §9.8: "Aggregated group interests" — same union-of-interests-and-hobbies
-  // convention as lib/matcher/score.ts's scoreSharedInterests.
+  // Union of each member's interests and hobbies, matching scoreSharedInterests.
   const interests = Array.from(
     new Set(prefRows.flatMap((row) => [...(row.interests ?? []), ...(row.hobbies ?? [])]))
   )
@@ -84,7 +81,7 @@ export async function buildGroupProfileForMeetup(meetupId: string): Promise<Grou
     .filter((value): value is number => value != null)
 
   // Most-restrictive-member-wins, matching lib/matcher/score.ts's
-  // closenessRadius(a, b) = min(a, b) convention for travel tolerance — the
+  // closenessRadius(a, b) = min(a, b) convention for travel tolerance. The
   // group's shared budget/travel ceiling is set by whoever can afford/travel
   // the least, not the average.
   const budgetAud = budgetValues.length > 0 ? Math.min(...budgetValues) : DEFAULT_BUDGET_AUD
@@ -129,7 +126,7 @@ export async function POST(request: Request) {
   const { meetupId } = parsed.data
 
   // Authz gate: the caller must be a member of this meetup. Resolved from
-  // the session (never from client-supplied input) — otherwise anyone could
+  // the session, never client input. Otherwise anyone could
   // trigger Gemini/Places spend and write recommendations into any meetup.
   const currentUser = await getCurrentUser()
   if (!currentUser) {
@@ -151,7 +148,7 @@ export async function POST(request: Request) {
 
   const result = await runVenueAgent(group)
 
-  // Places is the only source of venue facts (global constraint) — re-fetch
+  // Places is the only source of venue facts. Re-fetch
   // the winning place's detail purely to persist as the raw_places_json
   // provenance record. The fallback recommendation has no real Places
   // placeId, so there is nothing genuine to store for it.

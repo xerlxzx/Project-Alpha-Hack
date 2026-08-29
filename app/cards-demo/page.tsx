@@ -4,7 +4,7 @@ import { GroupPreview } from "@/components/GroupPreview";
 import { ProposalCard } from "@/components/ProposalCard";
 
 /**
- * TEMPORARY eyeball route for Task 4.5 (ProposalCard + GroupPreview) — not
+ * Temporary eyeball route for Task 4.5 (ProposalCard + GroupPreview). Not
  * linked from any nav. A later task wires these to live match/venue data
  * and this route can be deleted then. Guarded out of production builds so
  * it never ships as a real page.

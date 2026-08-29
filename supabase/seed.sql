@@ -1,7 +1,7 @@
--- Momentum — demo seed data (Task 1.2, extended by Task 1.4 and 1.5)
+-- Momentum demo seed data (Task 1.2, extended by Task 1.4 and 1.5)
 -- Builds on supabase/migrations/0001_schema.sql, 0002_location_and_meetup_fields.sql
 -- (area_lat/area_lng on preferences; activity_intent/tags/cost_min/cost_max
--- on meetups), AND 0003_browse_and_gender.sql (preferences.gender) — run
+-- on meetups), and 0003_browse_and_gender.sql (preferences.gender). Run
 -- this AFTER all three, with a service-role/superuser connection (it
 -- inserts into auth.users/auth.identities directly, and the service role
 -- bypasses RLS on every public.* table so the inserts below don't need to
@@ -34,7 +34,7 @@
 -- so re-running this file is safe.
 
 -- ---------------------------------------------------------------------------
--- auth.users / auth.identities — FK target for public.users.id. Demo-only:
+-- auth.users / auth.identities. FK target for public.users.id. Demo-only:
 -- these accounts are not meant to be logged into via password; the encrypted
 -- password is a throwaway value satisfying the NOT NULL constraint. Only the
 -- active demo user is expected to ever authenticate for real, via the app's
@@ -100,7 +100,7 @@ insert into public.users (id, university_email, is_verified, is_over_18) values
 on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
--- public.profiles — first_name, photo_url, age_range, university,
+-- public.profiles: first_name, photo_url, age_range, university,
 -- course_year only (no surname/phone/address columns exist to fill).
 -- ---------------------------------------------------------------------------
 
@@ -122,31 +122,29 @@ on conflict (user_id) do nothing;
 -- ---------------------------------------------------------------------------
 -- public.preferences
 -- Overlap with the active user's basketball / food exploration / casual
--- outdoor (users 02-05 only — commented per row); 06-12 are deliberately
--- non-overlapping to keep the demo pool varied rather than uniform.
+-- outdoor for users 02-05; users 06-12 do not overlap.
 -- area_lat/area_lng (added by 0002) are real approximate coordinates spread
--- around inner-Sydney, a few km apart — not a repeated campus-centroid proxy
--- — so travel-distance matching (PRD §9.6) has real variation to work with.
+-- around inner Sydney to vary PRD §9.6 travel-distance matching.
 -- The active user sits at USyd Camperdown; distances below are approximate
 -- straight-line km from there, roughly consistent with each user's
--- travel_km tolerance (not exact — real variation, not a formula).
+-- travel_km tolerance.
 -- ---------------------------------------------------------------------------
 
 insert into public.preferences (
   user_id, travel_km, budget_aud, hobbies, interests, gender_pref, language_pref,
   accessibility, social_energy, weekly_goal, area_lat, area_lng
 ) values
-  -- active user — USyd Camperdown (0 km, the reference point)
+  -- Active user: USyd Camperdown (0 km reference)
   ('00000000-0000-0000-0001-000000000001', 10, 30, ARRAY['basketball','hiking','photography'], ARRAY['basketball','food exploration','casual outdoor'], 'any', 'English', null, 'medium', 2, -33.8886, 151.1873),
-  -- overlap: basketball + food exploration — Redfern (~1.5 km)
+  -- Basketball + food exploration overlap. Redfern (~1.5 km)
   ('00000000-0000-0000-0001-000000000002', 8, 35, ARRAY['basketball','dancing'], ARRAY['basketball','food exploration','live music'], 'any', 'English', null, 'high', 3, -33.8930, 151.2000),
-  -- overlap: food exploration + casual outdoor — Kensington, near UNSW (~5 km)
+  -- Food exploration + casual outdoor overlap. Kensington (~5 km)
   ('00000000-0000-0000-0001-000000000003', 15, 25, ARRAY['hiking','cooking'], ARRAY['food exploration','casual outdoor','hiking'], 'any', 'English', null, 'medium', 1, -33.9173, 151.2313),
-  -- overlap: basketball + casual outdoor — Newtown (~1.5 km)
+  -- Basketball + casual outdoor overlap. Newtown (~1.5 km)
   ('00000000-0000-0000-0001-000000000004', 12, 20, ARRAY['basketball','reading'], ARRAY['basketball','casual outdoor','board games'], 'women', 'English, Hindi', null, 'medium', 2, -33.8983, 151.1784),
-  -- overlap: food exploration only — Ultimo, near UTS (~2 km)
+  -- Food exploration overlap. Ultimo (~2 km)
   ('00000000-0000-0000-0001-000000000005', 6, 40, ARRAY['cooking','sketching'], ARRAY['food exploration','coffee culture','art'], 'any', 'English', null, 'low', 1, -33.8830, 151.2005),
-  -- no overlap — Glebe (~1 km)
+  -- No overlap. Glebe (~1 km)
   ('00000000-0000-0000-0001-000000000006', 5, 15, ARRAY['chess','debate'], ARRAY['board games','trivia','study groups'], 'any', 'English, Vietnamese', null, 'low', 1, -33.8799, 151.1852),
   -- Kensington, near UNSW/hospital (~5.5 km)
   ('00000000-0000-0000-0001-000000000007', 20, 45, ARRAY['yoga','running'], ARRAY['hiking','yoga','wellness'], 'women', 'English, Korean', null, 'medium', 3, -33.9200, 151.2280),
@@ -158,16 +156,16 @@ insert into public.preferences (
   ('00000000-0000-0000-0001-000000000010', 15, 30, ARRAY['gym','football'], ARRAY['gym','sports','fitness'], 'any', 'English, Spanish', null, 'high', 4, -33.9150, 151.2250),
   -- Surry Hills (~2.3 km)
   ('00000000-0000-0000-0001-000000000011', 8, 25, ARRAY['photography','baking'], ARRAY['coffee culture','study groups','photography'], 'any', 'English, Mandarin', null, 'medium', 2, -33.8845, 151.2110),
-  -- Coogee — farthest out (~7 km), matches his higher travel tolerance
+  -- Coogee is farthest out (~7 km) with higher travel tolerance.
   ('00000000-0000-0000-0001-000000000012', 25, 20, ARRAY['hiking','stargazing'], ARRAY['hiking','astronomy','board games'], 'men', 'English', null, 'low', 1, -33.9205, 151.2544)
 on conflict (user_id) do nothing;
 
--- public.preferences.gender (added by 0003) — the user's own gender
+-- public.preferences.gender (added by 0003) stores the user's gender
 -- identity, varied across the 12 profiles (PRD §18's "gender" axis and
 -- §9.10's "gender mix" disclosure both need this, distinct from gender_pref
 -- which is a filter on others). Written as UPDATEs, not folded into the
 -- INSERT above, so this backfills rows that were seeded before 0003 existed
--- — safe to rerun either way since it targets fixed user_ids.
+-- and safely targets fixed user_ids on reruns.
 update public.preferences set gender = 'man' where user_id = '00000000-0000-0000-0001-000000000001';
 update public.preferences set gender = 'woman' where user_id = '00000000-0000-0000-0001-000000000002';
 update public.preferences set gender = 'man' where user_id = '00000000-0000-0000-0001-000000000003';
@@ -182,7 +180,7 @@ update public.preferences set gender = 'woman' where user_id = '00000000-0000-00
 update public.preferences set gender = 'man' where user_id = '00000000-0000-0000-0001-000000000012';
 
 -- ---------------------------------------------------------------------------
--- public.user_reliability — private (no RLS policy grants it to clients);
+-- public.user_reliability is private with no client RLS policy.
 -- varied scores, including one visibly reduced by a past late cancellation.
 -- ---------------------------------------------------------------------------
 
@@ -202,8 +200,7 @@ insert into public.user_reliability (user_id, score) values
 on conflict (user_id) do nothing;
 
 -- ---------------------------------------------------------------------------
--- public.availability_windows — mix of "im_free" (spontaneous, later today —
--- the default demo path per PRD 9.4) and "plan_ahead" (a future window).
+-- public.availability_windows mixes PRD 9.4 "im_free" and "plan_ahead" rows.
 -- ---------------------------------------------------------------------------
 
 insert into public.availability_windows (id, user_id, start_at, end_at, mode) values
@@ -230,7 +227,7 @@ on conflict (id) do nothing;
 
 -- activity_intent/tags/cost_min/cost_max (added by 0002) are only meaningful
 -- for the user-created cards (03-05, PRD §9.14); the system-generated
--- meetups (01-02) leave them null — their "intent" is the matcher's, not a
+-- meetups (01-02) leave them null. Their intent comes from the matcher, not a
 -- host's, and it's already captured by their activity_recommendations row.
 insert into public.meetups (
   id, status, quorum, size_cap, area_lat, area_lng, scheduled_at, created_by,
@@ -253,16 +250,16 @@ insert into public.meetup_members (meetup_id, user_id, accepted, revealed, rerol
   ('00000000-0000-0000-0003-000000000001', '00000000-0000-0000-0001-000000000002', true, true, false),
   ('00000000-0000-0000-0003-000000000001', '00000000-0000-0000-0001-000000000003', true, true, false),
   ('00000000-0000-0000-0003-000000000001', '00000000-0000-0000-0001-000000000004', true, true, false),
-  -- completed (past) meetup: active user + Maya — the pair that later mutually "meet again"
+  -- Completed meetup: active user + Maya, who later mutually choose "meet again"
   ('00000000-0000-0000-0003-000000000002', '00000000-0000-0000-0001-000000000001', true, true, false),
   ('00000000-0000-0000-0003-000000000002', '00000000-0000-0000-0001-000000000002', true, true, false),
-  -- user-created meetup A (Tom's board game night) — host + Aisha (shared board games/gaming interest)
+  -- Meetup A: Tom hosts Aisha for their shared board games interest
   ('00000000-0000-0000-0003-000000000003', '00000000-0000-0000-0001-000000000006', true, true, false),
   ('00000000-0000-0000-0003-000000000003', '00000000-0000-0000-0001-000000000009', true, true, false),
-  -- user-created meetup B (Liam's live music night) — host + Tom pending
+  -- Meetup B: Liam hosts with Tom pending
   ('00000000-0000-0000-0003-000000000004', '00000000-0000-0000-0001-000000000008', true, true, false),
   ('00000000-0000-0000-0003-000000000004', '00000000-0000-0000-0001-000000000006', false, false, false),
-  -- user-created meetup C (Chloe's coffee & study jam) — host only, still forming
+  -- Meetup C: Chloe hosts, still forming
   ('00000000-0000-0000-0003-000000000005', '00000000-0000-0000-0001-000000000011', true, true, false)
 on conflict (meetup_id, user_id) do nothing;
 
@@ -270,10 +267,10 @@ on conflict (meetup_id, user_id) do nothing;
 -- public.activity_recommendations
 -- 01: confirmed meetup's live recommendation
 -- 02: completed meetup's (past) recommendation, referenced by the momentum event
--- 03: meetup A — board game café, live
--- 04: meetup B — live music night, live, deliberately over budget by $7
+-- 03: meetup A, live board game café
+-- 04: meetup B, live music night, $7 over budget
 --     (PRD 9.8: "$5 to $10 above budget can appear as labelled recommendations")
--- 05: meetup C — coffee & study jam, fallback source (Places/Gemini failure path)
+-- 05: meetup C, coffee and study fallback
 -- ---------------------------------------------------------------------------
 
 insert into public.activity_recommendations (
@@ -318,7 +315,7 @@ insert into public.activity_recommendations (
 on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
--- public.chat_messages — 6 messages on the confirmed meetup, in order.
+-- public.chat_messages: 6 ordered messages on the confirmed meetup.
 -- ---------------------------------------------------------------------------
 
 insert into public.chat_messages (id, meetup_id, user_id, body, created_at) values
@@ -331,7 +328,7 @@ insert into public.chat_messages (id, meetup_id, user_id, body, created_at) valu
 on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
--- public.momentum_events — one prior completed activity for the active user.
+-- public.momentum_events: one completed activity for the active user.
 -- ---------------------------------------------------------------------------
 
 insert into public.momentum_events (id, user_id, activity_id, week, completed_at, hours) values
@@ -346,7 +343,7 @@ insert into public.momentum_events (id, user_id, activity_id, week, completed_at
 on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
--- public.feedback — mutual "meet again" between the active user and Maya,
+-- public.feedback: mutual "meet again" between the active user and Maya,
 -- both tied to the completed meetup above.
 -- ---------------------------------------------------------------------------
 
@@ -364,7 +361,7 @@ insert into public.feedback (id, meetup_id, from_user, about_user, group_reactio
 on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
--- public.friendships — resulting from the mutual "meet again" above.
+-- public.friendships resulting from the mutual "meet again" above.
 -- ---------------------------------------------------------------------------
 
 insert into public.friendships (user_a, user_b, via_meetup) values

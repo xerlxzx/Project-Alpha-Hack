@@ -1,7 +1,6 @@
 import { createBrowserClient } from "@supabase/ssr"
 
-// Browser client — safe to import from client components. Uses the
-// publicly-exposed anon key only.
+// Browser client using the public anon key.
 export function createClient() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

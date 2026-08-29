@@ -11,7 +11,7 @@ import { spring } from "@/components/motion/tokens";
 import { cn } from "@/lib/utils";
 
 export interface BottomTabBarProps {
-  /** The user's current active meetup, if any — links straight into it. */
+  /** Links to the user's active meetup when present. */
   activeMeetupId?: string | null;
   activeMeetupStatus?: "forming" | "confirmed" | null;
 }
@@ -24,10 +24,7 @@ interface TabDef {
 }
 
 /**
- * Hybrid-nav bottom bar (DESIGN_DIRECTION.md "Navigation", PRD §19). Rendered
- * only by app/layout.tsx once a user has an active meetup or history — new
- * and idle users never see this, keeping their flow single-action and
- * minimal-chrome. One of the four surfaces sanctioned for Liquid Glass.
+ * Bottom nav shown after the user has an active or past meetup.
  */
 export function BottomTabBar({ activeMeetupId, activeMeetupStatus }: BottomTabBarProps) {
   const pathname = usePathname();

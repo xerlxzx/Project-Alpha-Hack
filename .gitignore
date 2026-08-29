@@ -40,3 +40,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Next.js regenerates these; copies live outside this repo (Hack/AGENTS.md, Hack/CLAUDE.md)
+AGENTS.md
+CLAUDE.md

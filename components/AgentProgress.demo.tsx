@@ -4,10 +4,8 @@ import * as React from "react"
 
 import { AgentProgress, type AgentStep, type MapPin } from "@/components/AgentProgress"
 
-// Camperdown/Newtown-area coordinates (real venues, used only to exercise
-// the projection with a realistic spread) so the standalone demo reads like
-// the live screen. `firstResult` in task-3.2's smoke test lives at
-// -33.8885267, 151.1757575 — reused here as one of the four pins.
+// Camperdown/Newtown coords for the standalone demo projection.
+// One pin reuses the task-3.2 smoke-test venue at -33.8885267, 151.1757575.
 const CENTER = { lat: -33.8886, lng: 151.1873 }
 
 const DEMO_PINS: MapPin[] = [
@@ -33,13 +31,7 @@ function buildSteps(stage: number): AgentStep[] {
   }))
 }
 
-/**
- * Mock driver so `AgentProgress` can be viewed/verified standalone. This
- * scripts the 5-step sequence on a timer and drops pins in as "results
- * arrive" — a later task replaces this with the live match/venue route
- * data (same `AgentStep`/`MapPin` shapes, driven by real API progress
- * instead of a timer).
- */
+/** Standalone timer-driven AgentProgress mock. Live match uses the same shapes. */
 export default function AgentProgressDemo() {
   const [stage, setStage] = React.useState(0)
   const [visiblePins, setVisiblePins] = React.useState(0)

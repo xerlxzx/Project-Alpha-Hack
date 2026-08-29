@@ -1,5 +1,5 @@
 // Local onboarding-flow state. Deliberately separate from lib/types.ts (DB
-// domain types) — this shape is UI-only and gets translated into the DB
+// domain types). This UI-only shape is translated into the DB
 // shape by app/onboarding/actions.ts at save time.
 
 export const AGE_RANGES = ["18-20", "21-23", "24-26", "27+"] as const;
@@ -25,8 +25,7 @@ export interface MoreFields {
   genderPref: string;
   accessibility: string;
   socialEnergy: string;
-  /** Collected per PRD §9.2 but no `preferences` column exists for it yet —
-   * kept local-only, not sent to saveOnboarding. See task-4.2-report.md. */
+  /** No `preferences` column exists for this yet; kept local, not sent to saveOnboarding. */
   groupSizePref: string;
 }
 
@@ -88,7 +87,7 @@ export const initialOnboardingState: OnboardingState = {
   },
 };
 
-// Camperdown (University of Sydney) — used when geolocation is denied/
+// Camperdown (University of Sydney), used when geolocation is denied/
 // unavailable so the flow never blocks on a required input.
 export const CAMPERDOWN_FALLBACK: LocationValue = {
   lat: -33.8886,

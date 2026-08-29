@@ -1,13 +1,6 @@
-// POST /api/meetups — create a user meetup (PRD §9.14).
-//
-// The creator is resolved server-side via getCurrentUser() (real session →
-// seeded-demo-user fallback), NEVER from the request body: a client-supplied
-// id would let any caller create meetups in someone else's name.
-//
-// Uses getAdminSupabase() like /api/match: `meetups`' insert RLS requires
-// `created_by = auth.uid()`, which the demo user (no real auth session)
-// can't satisfy. Safe here because created_by is the server-resolved id, not
-// client input.
+// POST /api/meetups creates a meetup. Resolve the creator server-side
+// from the session, never from the request body. Uses getAdminSupabase()
+// because the demo user has no real auth session to satisfy insert RLS.
 import { getCurrentUser } from "@/lib/current-user";
 import { getAdminSupabase } from "@/lib/supabase/server";
 

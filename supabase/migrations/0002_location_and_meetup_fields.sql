@@ -1,4 +1,4 @@
--- Momentum — location + user-meetup fields (Task 1.4)
+-- Momentum location and user-meetup fields (Task 1.4)
 --
 -- Fills two gaps flagged in Planning/sdd/reports/task-1.2-report.md:
 -- 1. `preferences` had no approximate-location column at all (PRD §9.2
@@ -6,7 +6,7 @@
 --    centroid computed from member locations).
 -- 2. `meetups` had nowhere to store a user-created meetup's pre-recommendation
 --    intent/tags/cost range (PRD §9.14).
--- Both additions are nullable — existing rows and existing app code that
+-- Both additions are nullable, so existing rows and app code that
 -- only knows the 0001 columns keep working unchanged.
 
 alter table public.preferences

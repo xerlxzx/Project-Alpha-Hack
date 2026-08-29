@@ -30,7 +30,7 @@ type StartChoice = "now" | "1h" | "evening";
 type SocialEnergy = "low" | "medium" | "high";
 type MatchState = "idle" | "loading" | "insufficient" | "error";
 
-// Mirrors the (unexported) response shapes of POST /api/match —
+// Mirrors the unexported POST /api/match response shapes:
 // app/api/match/route.ts's ReadyResponse / InsufficientResponse.
 interface MatchSuggestion {
   meetupId: string;
@@ -132,7 +132,7 @@ export default function HomePage() {
       const res = await fetch("/api/match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // No activeUserId — /api/match derives the caller from the session
+        // /api/match derives the caller from the session
         // (falling back to the seeded demo user), never from the body.
         body: JSON.stringify({
           travelKm: c.travelKm,
@@ -268,7 +268,7 @@ export default function HomePage() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Controls bottom sheet — GlassPanel, sanctioned chrome surface       */
+/* Controls bottom sheet. Sanctioned GlassPanel surface.                */
 /* ------------------------------------------------------------------ */
 
 function ControlsSheet({
@@ -508,7 +508,7 @@ function Chip({
 }
 
 /* ------------------------------------------------------------------ */
-/* Match overlay — loading, PRD §14 "insufficient" fallback, and errors */
+/* Match overlay for loading, insufficient fallback, and errors. */
 /* ------------------------------------------------------------------ */
 
 function formatWhen(iso: string): string {
@@ -639,7 +639,7 @@ function MatchOverlay({
 }
 
 /* ------------------------------------------------------------------ */
-/* Ambient background — matches the landing page's warm mesh treatment */
+/* Ambient background matching the landing page's warm mesh treatment. */
 /* ------------------------------------------------------------------ */
 
 function Atmosphere() {

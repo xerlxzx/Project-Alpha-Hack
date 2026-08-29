@@ -4,7 +4,7 @@ import { CalendarPlus, Plus } from "lucide-react";
 import { MeetupCard, type MeetupCardData } from "@/components/MeetupCard";
 import { getAdminSupabase } from "@/lib/supabase/server";
 
-// DB-backed, per user — never statically prerender a browse feed of live rows.
+// DB-backed per user. Never statically prerender a browse feed of live rows.
 export const dynamic = "force-dynamic";
 
 const WHEN_FORMATTER = new Intl.DateTimeFormat("en-AU", {
@@ -33,21 +33,11 @@ function formatCoarseArea(lat: number | null, lng: number | null): string {
 }
 
 /**
- * Loads the browsable user-created meetup feed (PRD §9.14 / §11 screen 13).
+ * Loads the browsable user-created meetup feed.
  *
- * Uses getAdminSupabase(), not getServerSupabase(): `meetups`' RLS
- * (supabase/migrations/0001_schema.sql, "meetups_select_member_or_creator")
- * only grants SELECT to a meetup's creator or an existing member, scoped
- * `to authenticated` — there is no policy yet for "any verified user can
- * browse public forming meetups they haven't joined." This repo also has no
- * login flow implemented at all (no middleware, no sign-in route), so a
- * getServerSupabase() call always resolves as an unauthenticated `anon`
- * request today and would return zero rows regardless of policy. Flagged to
- * the orchestrator in Planning/sdd/reports/task-6.1-report.md as a schema
- * gap to close (a public-browse RLS policy) once real auth lands — this
- * admin-client read is a server-only stopgap so the feed is genuinely
- * interactive today rather than empty. It is not imported into any client
- * component.
+ * Uses getAdminSupabase() because the current RLS policy only grants SELECT
+ * to a meetup's creator or an existing member, and there is no public-browse
+ * policy yet. Server-only; not imported into any client component.
  */
 async function loadUserCreatedMeetups(): Promise<MeetupCardData[]> {
   const supabase = getAdminSupabase();

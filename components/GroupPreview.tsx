@@ -27,15 +27,9 @@ const CAT_BADGE_CLASSES = [
 ] as const;
 
 /**
- * Anonymous pre-acceptance group preview (PRD §9.10). Frames "why you
- * match," never "who you'll meet" — per DESIGN_DIRECTION.md this uses
- * colored trait badges from the categorical palette, not silhouettes or
- * blurred photos. Flat premium surface, matching ProposalCard.
- *
- * §9.10 allow-list only: group size, gender mix, age ranges, shared
- * interests, verification count, compatibility reason. Never accepts or
- * renders names, photos, contact info, exact locations, or reliability —
- * those simply have no prop here.
+ * Anonymous pre-acceptance group preview. Shows only group-level info:
+ * names, photos, contact details, exact locations, and reliability have no
+ * prop here.
  */
 export function GroupPreview({
   size,

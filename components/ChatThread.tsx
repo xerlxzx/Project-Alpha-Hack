@@ -10,17 +10,13 @@ import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { sendChatMessage } from "@/app/meetup/[id]/actions"
 
-// Kept local rather than importing components/motion/tokens — that shared
-// module is currently missing from both the working tree and git history
-// (flagged to the orchestrator; not part of this task's owned files).
+// Local fallback while components/motion/tokens is unavailable.
 const bubbleSpring = { type: "spring", stiffness: 320, damping: 24 } as const
 
 /**
- * Staged-reveal wrapper for the identity-reveal member grid (PRD §9.11).
+ * Staged-reveal wrapper for the identity-reveal member grid.
  * Lives here (rather than a dedicated file) because page.tsx is a Server
- * Component and this needs framer-motion; kept minimal and local since
- * components/motion/Reveal — the shared equivalent — is currently missing
- * (see actions.ts comment / message to the orchestrator).
+ * Component and this needs framer-motion.
  */
 export function MemberReveal({
   children,
@@ -63,16 +59,14 @@ export interface ChatThreadProps {
   meetupId: string
   currentUserId: string
   initialMessages: ChatMessage[]
-  /** Keyed by user_id — first name + photo for rendering bubbles/avatars. */
+  /** First name and photo keyed by user_id. */
   members: Record<string, ChatMember>
 }
 
 /**
  * Seeded messages render immediately; the active user's own send is
  * optimistic (shown instantly, reconciled or rolled back once the server
- * action returns) since Realtime is optional for the demo (PRD §9.13).
- * Bubble color is the only place identity leaks visually: amber = you,
- * flat neutral = everyone else (DESIGN_DIRECTION.md chat bubble style).
+ * action returns). Bubble color distinguishes the current user from others.
  */
 export function ChatThread({
   meetupId,

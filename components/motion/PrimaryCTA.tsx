@@ -14,11 +14,10 @@ export interface PrimaryCTAProps
 }
 
 /**
- * The one amber action in the system — "Lock me in", "Accept" (DESIGN_DIRECTION.md
- * reserves the amber fill for the single primary action per screen). Presses in
- * with spring physics, a light sweep crosses on hover, and an optional glow
- * breathes underneath. The glow is a separate blurred layer animating opacity
- * only, so it never repaints the button.
+ * Primary action button for "Lock me in" and "Accept". Presses in with spring
+ * physics, a light sweep crosses on hover, and an optional glow breathes
+ * underneath. The glow is a separate blurred layer animating opacity only,
+ * so it never repaints the button.
  */
 export const PrimaryCTA = React.forwardRef<HTMLButtonElement, PrimaryCTAProps>(
   ({ children, glow = true, className, ...props }, ref) => {
@@ -47,7 +46,7 @@ export const PrimaryCTA = React.forwardRef<HTMLButtonElement, PrimaryCTAProps>(
           transition={spring.snappy}
           {...props}
         >
-          {/* Light sweep on hover — transform only */}
+          {/* Hover light sweep. Transform only. */}
           {!reduce && (
             <span
               aria-hidden

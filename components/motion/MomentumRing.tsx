@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { spring, ease } from "./tokens";
 
 export interface MomentumRingProps {
-  /** 0–1. The share of the weekly goal that's closed. */
+  /** Weekly goal completion from 0 to 1. */
   progress: number;
   /** Diameter in px. */
   size?: number;
@@ -28,13 +28,11 @@ export interface MomentumRingProps {
 }
 
 /**
- * Apple Activity-style closing ring — Momentum's hero progress visual
- * (DESIGN_DIRECTION.md, "Momentum progress visual"). The arc springs closed, a
- * luminous tip rides the leading edge, and the center number counts up in step.
+ * Apple Activity-style closing ring. The arc springs closed, a luminous tip
+ * rides the leading edge, and the center number counts up in step.
  *
- * The tip's glow lives on a separate blurred layer whose opacity pulses — the
- * ring geometry itself only animates stroke/transform, so the infinite pulse
- * never triggers a filter re-render.
+ * A separate blurred layer pulses the tip glow. Ring geometry animates only
+ * stroke and transform to avoid filter re-renders.
  */
 export function MomentumRing({
   progress,
@@ -128,7 +126,7 @@ export function MomentumRing({
         />
       </svg>
 
-      {/* Luminous leading tip — rides the arc's end. Rotation only. */}
+      {/* Luminous leading tip. Rotation only. */}
       {clamped > 0.02 && (
         <motion.div
           className="pointer-events-none absolute inset-0"
@@ -146,7 +144,7 @@ export function MomentumRing({
               className="rounded-full bg-[var(--accent-hover)]"
               style={{ width: thickness - 4, height: thickness - 4 }}
             />
-            {/* Pulsing glow — opacity only */}
+            {/* Pulsing glow. Opacity only. */}
             {!reduce && (
               <motion.div
                 aria-hidden

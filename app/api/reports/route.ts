@@ -3,8 +3,8 @@ import { z } from "zod"
 import { getCurrentUser } from "@/lib/current-user"
 import { getAdminSupabase } from "@/lib/supabase/server"
 
-// PRD §9.16 / §10 — reports require a category and optional supporting
-// detail. The reporter is always the session user (never client-supplied).
+// Reports require a category and optional detail. The reporter is the session
+// user, never client-supplied.
 const ReportRequestSchema = z.object({
   reported: z.string().min(1),
   category: z.string().min(1).max(80),
@@ -37,10 +37,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "cannot_report_self" }, { status: 400 })
   }
 
-  // PRD §10: one report only *records* — it never auto-punishes. This
-  // inserts a row with status 'open'; escalation to the private 'review'
-  // state (on multiple/serious reports) is a separate moderation concern,
-  // not done here.
+  // Inserts a row with status 'open'. Escalation to 'review' is a separate
+  // moderation concern handled outside this route.
   const supabase = getAdminSupabase()
   const { error } = await supabase.from("reports").insert({
     reporter,
@@ -55,7 +53,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "persist_failed", detail: error.message }, { status: 500 })
   }
 
-  // Report history is never visible to participants (PRD §10) — the response
-  // confirms receipt and nothing more.
+  // Response confirms receipt only; report history is never visible to participants.
   return NextResponse.json({ ok: true })
 }

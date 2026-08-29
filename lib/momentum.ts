@@ -1,19 +1,11 @@
 import type { MomentumEvent } from "@/lib/types"
 
-// Pure, deterministic momentum computations (PRD 9.18). No DB access, no
-// side effects - callers pass in whatever event rows they've already
-// fetched/joined.
+// Pure momentum computations. No DB access; callers pass in
+// pre-fetched event rows.
 
 /**
- * `MomentumEvent` rows carry a bare `week` int (Postgres `extract(week from
- * completed_at)`), which is ISO week-of-year with no year attached - it
- * repeats every year, so it can't distinguish "week 35 of 2025" from
- * "week 35 of 2026". The functions below deliberately ignore that stored
- * field and instead derive week identity from `completedAt` itself (which
- * every event still carries), computing a year+week key that's stable
- * across year boundaries. This is more correct than trusting `.week`, at
- * the cost of quietly diverging from the DB's own precomputed column -
- * flagging it here since it's a deliberate, non-obvious choice.
+ * The stored `week` omits the year and repeats annually. Derive a stable
+ * year-week key from `completedAt` instead.
  */
 function isoWeekThursday(date: Date): Date {
   const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
@@ -41,8 +33,7 @@ export interface WeeklyProgress {
 
 /**
  * Activities completed in the same ISO week as `now`. `ratio` is capped at
- * 1 even if `completed` exceeds `goal`, and is 0 when no goal is set
- * (`weeklyGoal <= 0`) rather than treating "no goal" as "always complete".
+ * 1 and stays 0 when `weeklyGoal <= 0`.
  */
 export function activitiesThisWeek(
   events: MomentumEvent[],
@@ -62,11 +53,8 @@ export function activitiesThisWeek(
 }
 
 /**
- * Consecutive weeks (walking backward from the most recent week with any
- * completed activity) that meet `weeklyGoal`. Stops at the first week that
- * falls short or has no completions at all. No `now` parameter by design -
- * "current week" here means "the latest week present in the data", keeping
- * this fully deterministic from `events` alone.
+ * Counts consecutive goal-meeting weeks backward from the latest event week.
+ * Stops at the first missing or incomplete week.
  */
 export function weeklyStreak(events: MomentumEvent[], weeklyGoal: number): number {
   if (weeklyGoal <= 0) return 0
@@ -97,10 +85,8 @@ export function weeklyStreak(events: MomentumEvent[], weeklyGoal: number): numbe
 }
 
 /**
- * `MomentumEvent` alone has no category/place info - that lives on the
- * joined `ActivityRecommendation` row. Callers building a passport summary
- * join the two and pass the enriched shape; bare `MomentumEvent[]` still
- * works (categoriesTried/placesExplored just come back 0).
+ * Category and place come from a joined ActivityRecommendation.
+ * Bare MomentumEvents return zero categories and places.
  */
 export interface MomentumActivityRecord extends MomentumEvent {
   category?: string | null
@@ -115,10 +101,7 @@ export interface PassportSummary {
 }
 
 /**
- * Level formula: `1 + floor(totalActivities / 5)` - level 1 at zero
- * completed activities, one level up per 5 completed activities. Simple,
- * monotonic, and easy to reason about for a v1; not tuned against any
- * particular pacing target.
+ * Level formula: `1 + floor(totalActivities / 5)`.
  */
 function levelFromTotal(totalActivities: number): number {
   return 1 + Math.floor(totalActivities / 5)

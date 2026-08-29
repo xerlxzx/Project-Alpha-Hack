@@ -44,10 +44,8 @@ export interface AgentProgressProps {
 }
 
 /**
- * The venue-agent progress overlay — the single most demo-critical screen
- * (DESIGN_DIRECTION.md, "Agent progress screen"). An abstract map with candidate
- * pins dropping in live, beside a glass step-list that narrates each real API
- * call. Uses the sanctioned `GlassPanel` chrome surface.
+ * Venue-agent progress overlay: abstract map with candidate pins dropping in
+ * live, beside a glass step-list narrating each real API call.
  */
 export function AgentProgress({ loop = true, onComplete, className }: AgentProgressProps) {
   const reduce = useReducedMotion();

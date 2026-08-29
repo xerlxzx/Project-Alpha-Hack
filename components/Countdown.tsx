@@ -15,12 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-// Kept local rather than importing components/motion/{PrimaryCTA,tokens} —
-// that shared module is currently missing from both the working tree and
-// git history (flagged to the orchestrator; not part of this task's owned
-// files). `snappySpring` matches the transition PrimaryCTA used to use;
-// LockInButton reuses the same amber-fill visual language
-// (DESIGN_DIRECTION.md: amber reserved for the one primary action).
+// Local spring config matching PrimaryCTA's transition.
 const snappySpring = { type: "spring", stiffness: 320, damping: 24 } as const
 
 function LockInButton({
@@ -176,9 +171,8 @@ export interface LockMeInProps {
 }
 
 /**
- * PRD §9.12 — an explicit "Lock me in" tap, then a countdown + calendar
- * action. Cancellation affordance is present but intentionally inert here;
- * the reliability-score consequence logic is a later task.
+ * Explicit "Lock me in" confirmation, followed by a countdown and calendar
+ * export action. Cancellation affordance is present but inert in this build.
  */
 export function LockMeIn({ meetupId, activityTitle, venueName, scheduledAt }: LockMeInProps) {
   const [locked, setLocked] = React.useState(false)

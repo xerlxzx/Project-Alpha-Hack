@@ -27,7 +27,7 @@ export default async function MeetupFeedbackPage({
   }
 
   // Membership is established above. The allow-listed profile query uses
-  // the admin client because profile_public intentionally stops exposing
+  // the admin client because profile_public stops exposing
   // co-members once a meetup leaves `confirmed`.
   const admin = getAdminSupabase()
   const { data: meetup } = await admin

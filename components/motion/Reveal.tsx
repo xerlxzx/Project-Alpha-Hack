@@ -25,8 +25,7 @@ const offset: Record<NonNullable<RevealProps["from"]>, Record<string, number>> =
 };
 
 /**
- * Scroll-triggered reveal — the workhorse for the choreographed page. Rises and
- * unblurs into place once, when scrolled into view. Collapses to a plain fade
+ * Scroll-triggered reveal that rises and unblurs once in view. Uses a plain fade
  * (or nothing) under `prefers-reduced-motion`.
  */
 export function Reveal({
