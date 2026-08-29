@@ -14,10 +14,7 @@ import { spring } from "@/components/motion/tokens"
 import { Button } from "@/components/ui/button"
 import { getMeetupGroup, getVenueDetail, type VenueDetail } from "./actions"
 
-// The demo group's campus area (seed.sql — Alex Chen's `area_lat/area_lng`,
-// shared by most seeded meetups). Only used to frame the map when the match
-// flow doesn't hand back a centroid; the venue pin itself is always the
-// real Places coordinate.
+// Map frame when the match has no centroid. Venue pin still uses Places coords.
 const DEMO_AREA = { lat: -33.8886, lng: 151.1873 }
 
 const SKELETON_STEPS: AgentStep[] = [
@@ -135,52 +132,104 @@ function MatchFlow() {
 
   const started = React.useRef(false)
 
-  const runAgentAnimation = React.useCallback(
-    async (realSteps: AgentStep[], detail: VenueDetail | null, rec: Recommendation) => {
-      const stepMs = reduce ? 120 : 620
-      for (let i = 2; i < realSteps.length; i++) {
-        setSteps(
-          realSteps.map((s, j) => ({
-            ...s,
-            status: j < i ? "done" : j === i ? "active" : "pending",
-          }))
-        )
-        if (
-          (realSteps[i].key === "candidates" || realSteps[i].key === "selected") &&
-          detail?.lat != null &&
-          detail?.lng != null
-        ) {
-          setPins([
-            {
-              placeId: rec.placeId,
-              lat: detail.lat,
-              lng: detail.lng,
-              label: rec.venueName,
-              selected: true,
-            },
-          ])
-        }
-        await sleep(stepMs)
-      }
-      setSteps(realSteps.map((s) => ({ ...s, status: "done" })))
-    },
-    [reduce]
-  )
-
   React.useEffect(() => {
     if (started.current) return
     started.current = true
 
-    async function run() {
+    // Narration advances steps 0-3 on a timer. Match + venue-agent run in
+    // parallel. Hold on "Ranking by fit" until work delivers a result.
+
+    let cancelled = false
+
+    type AgentResult = {
+      steps: AgentStep[]
+      detail: VenueDetail | null
+      rec: Recommendation
+      source: "live" | "fallback"
+    }
+
+    let deliver: (r: AgentResult | { error: true }) => void = () => {}
+    const resultReady = new Promise<AgentResult | { error: true }>((resolve) => {
+      deliver = resolve
+    })
+
+    // Stop the scripted dwell on error or insufficient.
+    function bail(apply: () => void) {
+      if (cancelled) return
+      cancelled = true
+      apply()
+    }
+
+    async function narrate() {
+      setPhase("running")
+
+      const dwell = reduce ? [0, 0, 0, 0] : [1200, 2200, 1800, 1600]
+
+      // Steps 0-3 do not wait on the network.
+      for (let i = 0; i < 4; i++) {
+        if (cancelled) return
+        setSteps(
+          SKELETON_STEPS.map((s, j) => ({
+            ...s,
+            status: j < i ? "done" : j === i ? "active" : "pending",
+          }))
+        )
+        if (dwell[i]) await sleep(dwell[i])
+      }
+      if (cancelled) return
+
+      // Hold on "Ranking by fit" until the agent responds.
+      const result = await resultReady
+      if (cancelled) return
+      if ("error" in result) {
+        setPhase("error")
+        return
+      }
+
+      const dropWinnerPin = () => {
+        if (result.detail?.lat != null && result.detail?.lng != null) {
+          setPins([
+            {
+              placeId: result.rec.placeId,
+              lat: result.detail.lat,
+              lng: result.detail.lng,
+              label: result.rec.venueName,
+              selected: true,
+            },
+          ])
+        }
+      }
+
+      if (!reduce) {
+        // Pin lands while step 4 is active, then the proposal opens.
+        setSteps(
+          result.steps.map((s, j) => ({ ...s, status: j < 4 ? "done" : "active" }))
+        )
+        dropWinnerPin()
+        await sleep(900)
+        if (cancelled) return
+      } else {
+        dropWinnerPin()
+      }
+
+      setSteps(result.steps.map((s) => ({ ...s, status: "done" })))
+      setRecommendation(result.rec)
+      setVenueDetail(result.detail)
+      setSource(result.source)
+      setPhase("proposal")
+    }
+
+    async function work() {
       try {
-        // 1 — resolve the forming meetup + anonymised group.
+        // Forming meetup + anonymised group.
         let resolved: GroupState
 
         const paramMeetupId = searchParams.get("meetupId")
         if (paramMeetupId) {
           const g = await getMeetupGroup(paramMeetupId)
           if (!g) {
-            setPhase("error")
+            bail(() => setPhase("error"))
+            deliver({ error: true })
             return
           }
           if (g.center) setCenter(g.center)
@@ -198,13 +247,17 @@ function MatchFlow() {
             body: "{}",
           })
           if (!res.ok) {
-            setPhase("error")
+            bail(() => setPhase("error"))
+            deliver({ error: true })
             return
           }
           const data = (await res.json()) as MatchReady | MatchInsufficient
           if (data.status === "insufficient") {
-            setInsufficient(data)
-            setPhase("insufficient")
+            bail(() => {
+              setInsufficient(data)
+              setPhase("insufficient")
+            })
+            deliver({ error: true })
             return
           }
           resolved = {
@@ -216,44 +269,38 @@ function MatchFlow() {
           }
         }
 
+        if (cancelled) return
         setGroup(resolved)
-        setSteps(
-          SKELETON_STEPS.map((s, i) => ({
-            ...s,
-            status: i === 0 ? "done" : i === 1 ? "active" : "pending",
-          }))
-        )
-        setPhase("running")
 
-        // 2 — run the venue agent against the real meetup.
+        // Venue agent, then Places coords for the winner.
         const vaRes = await fetch("/api/venue-agent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ meetupId: resolved.meetupId }),
         })
         if (!vaRes.ok) {
-          setPhase("error")
+          bail(() => setPhase("error"))
+          deliver({ error: true })
           return
         }
         const va = (await vaRes.json()) as VenueAgentResponse
-
-        // 3 — resolve the winning venue's coordinates + address from Places.
         const detail = await getVenueDetail(va.recommendation.placeId)
 
-        // 4 — play the returned steps + drop the venue pin.
-        await runAgentAnimation(va.steps, detail, va.recommendation)
-
-        setRecommendation(va.recommendation)
-        setVenueDetail(detail)
-        setSource(va.source)
-        setPhase("proposal")
+        deliver({
+          steps: va.steps,
+          detail,
+          rec: va.recommendation,
+          source: va.source,
+        })
       } catch {
-        setPhase("error")
+        bail(() => setPhase("error"))
+        deliver({ error: true })
       }
     }
 
-    void run()
-  }, [searchParams, runAgentAnimation])
+    void narrate()
+    void work()
+  }, [searchParams, reduce])
 
   async function onReroll() {
     if (!group || busy || rerollUsed) return
