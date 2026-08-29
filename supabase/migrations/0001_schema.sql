@@ -1,4 +1,4 @@
--- Momentum initial schema (Task 1.1)
+-- Project Alpha initial schema (Task 1.1)
 -- 14 domain tables + a private, server-only reliability table, with RLS.
 --
 -- Privacy hard rule (PRD 9.1 / 9.11): no surname, phone number, or home/street

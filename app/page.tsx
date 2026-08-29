@@ -25,7 +25,7 @@ export default function LandingPage() {
           variants={riseItem}
           className="font-display text-5xl font-semibold tracking-tight text-foreground sm:text-6xl"
         >
-          Momentum
+          Project Alpha
         </motion.h1>
 
         <motion.p

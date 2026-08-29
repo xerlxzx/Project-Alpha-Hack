@@ -12,14 +12,14 @@ export interface ShareCardProps {
 }
 
 /**
- * Shareable Momentum recap with aggregate numbers only. The component accepts
+ * Shareable Project Alpha recap with aggregate numbers only. The component accepts
  * no participant or venue details.
  * "Share" copies the recap to the clipboard for this preview.
  */
 export function ShareCard({ completed, goal, streak, className }: ShareCardProps) {
   const [copied, setCopied] = React.useState(false)
 
-  const recapText = `${completed}/${goal} plans completed. ${streak}-week Momentum streak.`
+  const recapText = `${completed}/${goal} plans completed. ${streak}-week Project Alpha streak.`
 
   async function handleCopy() {
     try {
@@ -37,9 +37,9 @@ export function ShareCard({ completed, goal, streak, className }: ShareCardProps
         "flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 text-center text-card-foreground",
         className
       )}
-      aria-label="Shareable Momentum recap"
+      aria-label="Shareable Project Alpha recap"
     >
-      <p className="font-display text-xl text-foreground">Momentum</p>
+      <p className="font-display text-xl text-foreground">Project Alpha</p>
       <p className="text-base text-foreground">{recapText}</p>
       <p className="text-xs text-muted-foreground">
         Recap only - no names, photos, or locations shown.

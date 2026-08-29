@@ -1,7 +1,7 @@
 {
-  "name": "Momentum",
-  "short_name": "Momentum",
-  "description": "Find your people, find your place. Momentum plans real-world meetups from your group's shared interests.",
+  "name": "Project Alpha",
+  "short_name": "Project Alpha",
+  "description": "Find your people, find your place. Project Alpha plans real-world meetups from your group's shared interests.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FAF8F5",

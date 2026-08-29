@@ -1,4 +1,4 @@
--- Momentum public-browse RLS and gender identity (Task 1.5)
+-- Project Alpha public-browse RLS and gender identity (Task 1.5)
 --
 -- 1. Adds the PRD §9.14 browse policy missing from 0001, plus member reads
 --    needed to compute "N/size going."

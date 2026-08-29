@@ -1,8 +1,8 @@
-# Momentum
+# Project Alpha
 
 A bored student can go from a phone to a confirmed group activity at a real venue in under two minutes.
 
-Momentum is a mobile-first PWA for university students. You set when you are free, how far you will travel, and what you enjoy. TypeScript matching forms a small group of compatible, verified students. A Gemini venue agent searches Google Places for a real activity nearby. The group accepts. Identities open in stages. The plan locks in. The product uses technology so you can leave it behind.
+Project Alpha is a mobile-first PWA for university students. You set when you are free, how far you will travel, and what you enjoy. TypeScript matching forms a small group of compatible, verified students. A Gemini venue agent searches Google Places for a real activity nearby. The group accepts. Identities open in stages. The plan locks in. The product uses technology so you can leave it behind.
 
 Built for **SYNCS Hack 2026** (theme: *Blocks That Make Up the World*).
 
@@ -10,7 +10,7 @@ Built for **SYNCS Hack 2026** (theme: *Blocks That Make Up the World*).
 
 ## The demo journey
 
-Landing → **Enter demo** → 60-second onboarding → **I'm free later today** → matching + live Places search → proposed venue + anonymous group → **Accept** (or reroll once) → quorum → identity reveal + group chat + **Lock me in** → **Demo: skip to feedback** → one-tap feedback → Momentum ring updates.
+Landing → **Enter demo** → 60-second onboarding → **I'm free later today** → matching + live Places search → proposed venue + anonymous group → **Accept** (or reroll once) → quorum → identity reveal + group chat + **Lock me in** → **Demo: skip to feedback** → one-tap feedback → progress ring updates.
 
 ## Architecture: what decides what
 
@@ -51,9 +51,9 @@ The card shows a real Places photo, address, opening status, estimated distance,
 The prototype runs on a seeded world. The data is interactive, not screenshots.
 
 - **12 student profiles** with varied interests, availability, budget, location, language, gender, age range, social energy, and reliability. The active demo user likes basketball, food exploration, and casual outdoor. About four candidates overlap in a way you can explain.
-- One confirmed system-generated meetup, three user-created meetups, group-chat history, a prior completed activity (Momentum profile), one mutual "meet again" friendship, and one budget/distance exception.
+- One confirmed system-generated meetup, three user-created meetups, group-chat history, a prior completed activity (Project Alpha profile), one mutual "meet again" friendship, and one budget/distance exception.
 
-Live in this build: matcher, Gemini tool-calling, Google Places retrieval, accept / reroll / quorum, staged disclosure, chat send, and feedback → Momentum.
+Live in this build: matcher, Gemini tool-calling, Google Places retrieval, accept / reroll / quorum, staged disclosure, chat send, and feedback → profile ring.
 
 ## Tech stack
 

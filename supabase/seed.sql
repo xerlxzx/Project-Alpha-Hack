@@ -1,4 +1,4 @@
--- Momentum demo seed data (Task 1.2, extended by Task 1.4 and 1.5)
+-- Project Alpha demo seed data (Task 1.2, extended by Task 1.4 and 1.5)
 -- Builds on supabase/migrations/0001_schema.sql, 0002_location_and_meetup_fields.sql
 -- (area_lat/area_lng on preferences; activity_intent/tags/cost_min/cost_max
 -- on meetups), and 0003_browse_and_gender.sql (preferences.gender). Run
@@ -16,7 +16,7 @@
 --   Feedback             00000000-0000-0000-0006-0000000000NN 01/02 mutual "meet again"
 --   Friendship             00000000-0000-0000-0007-000000000001
 --   Availability windows   00000000-0000-0000-0008-0000000000NN  matches user NN
---   Momentum event          00000000-0000-0000-0009-000000000001
+--   Project Alpha event     00000000-0000-0000-0009-000000000001
 --
 -- ACTIVE DEMO USER  = 00000000-0000-0000-0001-000000000001  (Alex Chen)
 -- CONFIRMED MEETUP  = 00000000-0000-0000-0003-000000000001  (Pickup Basketball + Bites, Victoria Park)
@@ -221,7 +221,7 @@ on conflict (id) do nothing;
 -- ---------------------------------------------------------------------------
 -- public.meetups
 -- 01 confirmed (system-generated, created_by null)
--- 02 completed (past, for the active user's Momentum history)
+-- 02 completed (past, for the active user's Project Alpha history)
 -- 03-05 user-created ("cards"), each forming, each hosted by a different user
 -- ---------------------------------------------------------------------------
 

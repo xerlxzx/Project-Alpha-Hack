@@ -95,7 +95,7 @@ export default async function ProfilePage() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-8 px-5 py-10">
       <header className="flex flex-col items-center gap-1 text-center">
-        <p className="text-sm text-muted-foreground">Your Momentum</p>
+        <p className="text-sm text-muted-foreground">Your Project Alpha</p>
         <h1 className="font-display text-2xl text-foreground">This week&apos;s progress</h1>
       </header>
 

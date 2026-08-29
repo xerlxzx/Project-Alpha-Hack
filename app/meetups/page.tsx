@@ -144,7 +144,7 @@ function EmptyState() {
         No meetups yet
       </p>
       <p className="max-w-xs text-sm text-muted-foreground">
-        Be the first to start one — pick an activity and Momentum will help you find a place.
+        Be the first to start one. Pick an activity and Project Alpha will help you find a place.
       </p>
       <Link
         href="/meetups/create"
