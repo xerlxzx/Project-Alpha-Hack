@@ -5,10 +5,7 @@ import { z } from "zod";
 
 import { GEMINI_MODEL, getEnv } from "@/lib/config";
 import { getAdminSupabase, getServerSupabase } from "@/lib/supabase/server";
-
-// Seeded active demo user (supabase/seed.sql) — used whenever there is no
-// real Supabase Auth session, so the flow is walkable without signing in.
-const DEMO_USER_ID = "00000000-0000-0000-0001-000000000001";
+import { getCurrentUser, type CurrentUser } from "@/lib/current-user";
 
 const PHOTO_BUCKET = "profile-photos";
 
@@ -18,10 +15,16 @@ const TagsSchema = z.object({
   tags: z.array(z.string().min(1).max(40)).max(10),
 });
 
-async function getCurrentUserId(): Promise<string> {
-  const supabase = await getServerSupabase();
-  const { data } = await supabase.auth.getUser();
-  return data.user?.id ?? DEMO_USER_ID;
+/**
+ * The client to write profile/preferences data with, for a user already
+ * resolved via getCurrentUser() — never from client-supplied input. A real
+ * session uses the RLS-enforced server client (auth.uid() = resolved id, so
+ * the owner-only policies pass); the demo identity has no real session, so
+ * RLS would reject it — the admin client is the documented exception for
+ * that path (see lib/current-user.ts).
+ */
+async function getWriteClient(user: CurrentUser) {
+  return user.isDemo ? getAdminSupabase() : await getServerSupabase();
 }
 
 function dedupeTags(tags: string[]): string[] {
@@ -120,11 +123,18 @@ export async function uploadProfilePhoto(
     return { error: "Photo is too large." };
   }
 
+  const user = await getCurrentUser();
+  if (!user) {
+    return { error: "Not authenticated." };
+  }
+
   try {
     await ensurePhotoBucketExists();
-    const userId = await getCurrentUserId();
+    // Storage has no RLS policies defined (see supabase/migrations) for
+    // either identity, so the admin client is required regardless — only
+    // the path (derived from the resolved, non-spoofable user id) changes.
     const admin = getAdminSupabase();
-    const path = `${userId}/${Date.now()}.jpg`;
+    const path = `${user.id}/${Date.now()}.jpg`;
 
     const { error: uploadError } = await admin.storage
       .from(PHOTO_BUCKET)
@@ -167,15 +177,23 @@ export async function saveOnboarding(
     return { ok: false, error: "First name and university are required." };
   }
 
-  try {
-    const userId = await getCurrentUserId();
-    const admin = getAdminSupabase();
+  const user = await getCurrentUser();
+  if (!user) {
+    return { ok: false, error: "Not authenticated." };
+  }
 
-    const { error: profileError } = await admin
+  try {
+    const client = await getWriteClient(user);
+
+    // user.id is the only source of identity here — resolved server-side by
+    // getCurrentUser() from the session cookie (or the demo fallback), never
+    // from payload/client input — so this can never write to another
+    // caller's row.
+    const { error: profileError } = await client
       .from("profiles")
       .upsert(
         {
-          user_id: userId,
+          user_id: user.id,
           first_name: payload.firstName.trim(),
           photo_url: payload.photoUrl,
           age_range: payload.ageRange,
@@ -185,11 +203,11 @@ export async function saveOnboarding(
       );
     if (profileError) throw profileError;
 
-    const { error: prefsError } = await admin
+    const { error: prefsError } = await client
       .from("preferences")
       .upsert(
         {
-          user_id: userId,
+          user_id: user.id,
           travel_km: payload.travelKm,
           budget_aud: payload.budgetAud,
           hobbies: payload.hobbies,
@@ -205,10 +223,10 @@ export async function saveOnboarding(
       );
     if (prefsError) throw prefsError;
 
-    const { error: availabilityError } = await admin
+    const { error: availabilityError } = await client
       .from("availability_windows")
       .insert({
-        user_id: userId,
+        user_id: user.id,
         start_at: payload.availabilityStartAt,
         end_at: payload.availabilityEndAt,
         mode: payload.availabilityMode,
