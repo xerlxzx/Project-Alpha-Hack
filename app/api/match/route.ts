@@ -5,14 +5,7 @@ import { getCurrentUser } from "@/lib/current-user"
 import { buildMatch, describeGenderMix } from "@/lib/matcher/match"
 import { loadMatchInputs, type MatchPoolMember } from "@/lib/matcher/loadPool"
 import { MatchRequestSchema, requestedMeetupTime } from "@/lib/matcher/request"
-
-// Pre-acceptance disclosure fields only. No names, photos, contact info,
-// exact location, reliability, or reports.
-interface AnonymisedMember {
-  verified: boolean
-  ageRange: string | null
-  sharedInterests: string[]
-}
+import { type AnonymisedMember, sharedInterestsOf } from "@/lib/matcher/anonymize"
 
 interface ReadyResponse {
   meetupId: string
@@ -27,12 +20,6 @@ interface InsufficientResponse {
   status: "insufficient"
   nearestFuture: { startAt: string } | null
   suggestion: { meetupId: string; activityIntent: string | null; tags: string[] | null; scheduledAt: string | null } | null
-}
-
-function sharedInterestsOf(activeUser: { interests: string[]; hobbies: string[] }, candidate: { interests: string[]; hobbies: string[] }): string[] {
-  const candidateSignals = new Set([...candidate.interests, ...candidate.hobbies])
-  const activeSignals = [...new Set([...activeUser.interests, ...activeUser.hobbies])]
-  return activeSignals.filter((signal) => candidateSignals.has(signal))
 }
 
 function centroid(points: Array<{ lat: number | null | undefined; lng: number | null | undefined }>): { lat: number; lng: number } | null {
