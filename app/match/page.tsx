@@ -82,7 +82,14 @@ interface GroupState {
   explanation: string[]
 }
 
-type Phase = "loading" | "running" | "proposal" | "confirming" | "insufficient" | "error"
+type Phase =
+  | "loading"
+  | "running"
+  | "proposal"
+  | "confirming"
+  | "waiting"
+  | "insufficient"
+  | "error"
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -312,7 +319,9 @@ function MatchFlow() {
         confirmed: boolean
       }
 
-      const target = Math.max(data.acceptedCount, data.quorum)
+      const target = data.confirmed
+        ? Math.max(data.acceptedCount, data.quorum)
+        : data.acceptedCount
       setTally({ accepted: 0, quorum: data.quorum, confirmed: false })
       for (let n = 1; n <= target; n++) {
         setTally({ accepted: n, quorum: data.quorum, confirmed: false })
@@ -324,8 +333,7 @@ function MatchFlow() {
       if (data.confirmed) {
         router.push(`/meetup/${group.meetupId}`)
       } else {
-        setActionError("Waiting on the rest of the group to accept.")
-        setPhase("proposal")
+        setPhase("waiting")
       }
     } catch {
       setActionError("Couldn't record your acceptance — try again.")
@@ -346,11 +354,15 @@ function MatchFlow() {
         <h1 className="font-display text-2xl font-semibold text-foreground">
           {phase === "proposal" || phase === "confirming"
             ? "Your plan is ready"
+            : phase === "waiting"
+              ? "Your group is still forming"
             : "Finding your group"}
         </h1>
         <p className="text-sm text-muted-foreground">
           {phase === "proposal" || phase === "confirming"
             ? "Review the group and the venue, then lock it in."
+            : phase === "waiting"
+              ? "Your acceptance is saved while matching stays open."
             : "Matching compatible students, then sending an AI agent to find a real venue."}
         </p>
       </header>
@@ -360,10 +372,20 @@ function MatchFlow() {
       )}
 
       {source === "fallback" && (phase === "proposal" || phase === "confirming") && (
-        <p className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2 text-xs font-medium text-accent-hover dark:text-accent">
-          <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
-          Live venue search was unavailable — showing a cached demo recommendation (PRD §14).
-        </p>
+        <div
+          className="flex items-start gap-3 rounded-xl border border-accent/25 bg-accent/10 px-4 py-3"
+          role="status"
+        >
+          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-accent-hover dark:text-accent" aria-hidden />
+          <div className="flex flex-col gap-0.5">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-hover dark:text-accent">
+              Cached demo result
+            </p>
+            <p className="text-sm text-foreground/80">
+              Here&apos;s a saved venue recommendation while live search is unavailable.
+            </p>
+          </div>
+        </div>
       )}
 
       <AnimatePresence mode="wait">
@@ -379,14 +401,17 @@ function MatchFlow() {
               activityTitle={recommendation.activityTitle}
               venueName={recommendation.venueName}
               address={venueDetail?.address ?? ""}
+              photoUrl={venueDetail?.photoUrl ?? null}
               openNow={venueDetail?.openNow ?? null}
               estimatedDistanceKm={recommendation.estimatedDistanceKm}
-              estimatedCostAud={recommendation.estimatedCostAud}
+              estimatedCostAud={
+                source === "fallback" ? undefined : recommendation.estimatedCostAud
+              }
               reason={recommendation.reason}
               overBudgetPreference={recommendation.overBudgetPreference}
               overDistancePreference={recommendation.overDistancePreference}
               mapsUrl={venueDetail?.mapsUrl ?? null}
-              bookingUrl={recommendation.bookingUrl}
+              bookingUrl={source === "fallback" ? null : recommendation.bookingUrl}
             />
 
             <GroupPreview
@@ -455,18 +480,69 @@ function MatchFlow() {
           </motion.div>
         )}
 
-        {phase === "insufficient" && (
+        {phase === "waiting" && (
           <motion.div
-            key="insufficient"
-            className="flex flex-col gap-3 rounded-2xl bg-card p-5 ring-1 ring-foreground/10"
+            key="waiting"
+            className="flex flex-col gap-4 rounded-2xl border border-accent/25 bg-card p-5"
             initial={reduce ? { opacity: 0 } : { opacity: 0, y: 16 }}
             animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
             transition={reduce ? { duration: 0.15 } : spring.gentle}
           >
-            <p className="flex items-center gap-2 text-sm font-medium text-accent-hover dark:text-accent">
-              <TriangleAlert className="size-4 shrink-0" aria-hidden />
-              No group is ready yet
+            <div className="flex items-start gap-3 rounded-xl bg-accent/10 px-4 py-3">
+              <CalendarClock
+                className="mt-0.5 size-4 shrink-0 text-accent-hover dark:text-accent"
+                aria-hidden
+              />
+              <div className="flex flex-col gap-0.5">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-hover dark:text-accent">
+                  Matching stays open
+                </p>
+                <p className="text-sm text-foreground/80">
+                  This group has not reached quorum yet. We&apos;ll keep looking for
+                  compatible members without revealing anyone&apos;s identity.
+                </p>
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              Your acceptance is saved. You can wait for this group or browse the closest
+              available future meetups.
             </p>
+            <p className="text-sm font-medium text-foreground">
+              {tally.accepted} of {tally.quorum} acceptances received
+            </p>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="outline" render={<Link href="/home" />}>
+                Keep waiting
+              </Button>
+              <Button variant="outline" render={<Link href="/meetups" />}>
+                Browse future meetups
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
+        {phase === "insufficient" && (
+          <motion.div
+            key="insufficient"
+            className="flex flex-col gap-4 rounded-2xl border border-accent/25 bg-card p-5"
+            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 16 }}
+            animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
+            transition={reduce ? { duration: 0.15 } : spring.gentle}
+          >
+            <div className="flex items-start gap-3 rounded-xl bg-accent/10 px-4 py-3">
+              <CalendarClock
+                className="mt-0.5 size-4 shrink-0 text-accent-hover dark:text-accent"
+                aria-hidden
+              />
+              <div className="flex flex-col gap-0.5">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-hover dark:text-accent">
+                  Interest pool
+                </p>
+                <p className="text-sm font-medium text-foreground">No group is ready yet</p>
+              </div>
+            </div>
             <p className="text-sm text-muted-foreground">
               Not enough compatible students are free right now. We&apos;ve added you to the
               interest pool and will match you as soon as a group forms.
