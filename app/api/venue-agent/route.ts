@@ -4,12 +4,9 @@ import { assertMeetupMember, getCurrentUser } from "@/lib/current-user"
 import { getAdminSupabase } from "@/lib/supabase/server"
 import { placeDetails } from "@/lib/venue-agent/places"
 import { runVenueAgent, type GroupProfile } from "@/lib/venue-agent/agent"
+import { buildGroupProfileFromMembers, type MemberProfileInput } from "@/lib/venue-agent/groupProfile"
 
 const RequestBodySchema = z.object({ meetupId: z.string() })
-
-// Fallbacks for members without a stored preference.
-const DEFAULT_BUDGET_AUD = 20
-const DEFAULT_TRAVEL_KM = 10
 
 interface PreferenceRow {
   travel_km: number | null
@@ -64,50 +61,21 @@ export async function buildGroupProfileForMeetup(meetupId: string): Promise<Grou
 
   const prefRows = (preferences ?? []) as PreferenceRow[]
 
-  // Union of each member's interests and hobbies, matching scoreSharedInterests.
-  const interests = Array.from(
-    new Set(prefRows.flatMap((row) => [...(row.interests ?? []), ...(row.hobbies ?? [])]))
-  )
+  const memberInputs: MemberProfileInput[] = prefRows.map((row) => ({
+    interests: row.interests ?? [],
+    hobbies: row.hobbies ?? [],
+    budgetAud: row.budget_aud,
+    travelKm: row.travel_km,
+    areaLat: row.area_lat,
+    areaLng: row.area_lng,
+    accessibility: row.accessibility,
+  }))
 
-  const accessibilityNeeds = Array.from(
-    new Set(prefRows.map((row) => row.accessibility).filter((value): value is string => Boolean(value)))
-  )
-
-  const travelValues = prefRows
-    .map((row) => row.travel_km)
-    .filter((value): value is number => value != null)
-  const budgetValues = prefRows
-    .map((row) => row.budget_aud)
-    .filter((value): value is number => value != null)
-
-  // Most-restrictive-member-wins, matching lib/matcher/score.ts's
-  // closenessRadius(a, b) = min(a, b) convention for travel tolerance. The
-  // group's shared budget/travel ceiling is set by whoever can afford/travel
-  // the least, not the average.
-  const budgetAud = budgetValues.length > 0 ? Math.min(...budgetValues) : DEFAULT_BUDGET_AUD
-  const travelKm = travelValues.length > 0 ? Math.min(...travelValues) : DEFAULT_TRAVEL_KM
-
-  const locatedRows = prefRows.filter(
-    (row): row is PreferenceRow & { area_lat: number; area_lng: number } =>
-      row.area_lat != null && row.area_lng != null
-  )
-  const center =
-    locatedRows.length > 0
-      ? {
-          lat: locatedRows.reduce((sum, row) => sum + row.area_lat, 0) / locatedRows.length,
-          lng: locatedRows.reduce((sum, row) => sum + row.area_lng, 0) / locatedRows.length,
-        }
-      : { lat: meetup.area_lat ?? 0, lng: meetup.area_lng ?? 0 }
-
-  return {
-    interests,
-    center,
-    budgetAud,
-    travelKm,
+  return buildGroupProfileFromMembers(memberInputs, {
+    fallbackCenter: { lat: meetup.area_lat ?? 0, lng: meetup.area_lng ?? 0 },
     groupSize: userIds.length,
-    accessibilityNeeds: accessibilityNeeds.length > 0 ? accessibilityNeeds : undefined,
     allowedCategories: meetup.tags ?? undefined,
-  }
+  })
 }
 
 export async function POST(request: Request) {
