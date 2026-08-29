@@ -141,7 +141,7 @@ function fallbackSteps(): AgentStep[] {
 function buildPlanPrompt(group: GroupProfile): string {
   return [
     "You are planning a Google Places Text Search for a student meetup group.",
-    "Return ONLY JSON matching the given schema — no prose.",
+    "Return ONLY JSON matching the given schema. No prose.",
     `Group interests: ${JSON.stringify(group.interests)}`,
     `Group size: ${group.groupSize}`,
     `Budget (AUD per person): ${group.budgetAud}`,
@@ -164,7 +164,7 @@ function buildRankPrompt(candidates: PlaceCandidate[], group: GroupProfile, plan
   }))
 
   return [
-    "Rank ONLY the candidates below for this group — do not invent a venue or placeId not listed here.",
+    "Rank ONLY the candidates below for this group. Do not invent a venue or placeId not listed here.",
     `Group interests: ${JSON.stringify(group.interests)}`,
     `Search intent: ${plan.textQuery}`,
     `Candidates: ${JSON.stringify(candidateSummaries)}`,

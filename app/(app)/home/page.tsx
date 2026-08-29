@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
+  ArrowUp,
   CalendarClock,
   Clock,
   Coffee,
@@ -219,7 +220,7 @@ const ACTIVITIES: Activity[] = [
     label: "Explore",
     Icon: Compass,
     proposed: null,
-    tagline: "Open to anything — we'll surface something new nearby.",
+    tagline: "Open to anything. We'll surface something new nearby.",
     glow: "var(--cat-plum)",
     selectedClass: "border-cat-plum/45 bg-cat-plum/25 text-cat-foreground",
   },
@@ -370,6 +371,16 @@ export default function HomePage() {
     };
   }, []);
 
+  // Personalized line: an active activity always wins (it's an explicit
+  // choice); otherwise, lead with real presence when we have it, and only
+  // fall back to the generic rotating subtitle when nobody's around.
+  const presenceLine =
+    nearby && nearby.availableCount > 0
+      ? `${nearby.availableCount} ${nearby.availableCount === 1 ? "person" : "people"} near you ${nearby.availableCount === 1 ? "is" : "are"} free right now.`
+      : null;
+  const heroLine = activity?.tagline ?? presenceLine ?? subtitle;
+  const heroLineKey = activity ? activity.id : presenceLine ? "presence" : "default";
+
   // Time-of-day greeting. SSR renders no greeting line for a stable first
   // paint; the client fills it in from the viewer's local clock after mount.
   const [greeting, setGreeting] = React.useState<string | null>(null);
@@ -492,19 +503,23 @@ export default function HomePage() {
           >
             <AnimatePresence mode="wait" initial={false}>
               <motion.span
-                key={activity ? activity.id : "default"}
+                key={heroLineKey}
                 initial={reduce ? false : { opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={reduce ? { opacity: 0 } : { opacity: 0, y: -4 }}
                 transition={{ duration: 0.25 }}
                 className="block"
               >
-                {activity ? activity.tagline : subtitle}
+                {heroLine}
               </motion.span>
             </AnimatePresence>
           </motion.p>
 
-          <motion.div variants={riseItem} className="mt-8">
+          <motion.div variants={riseItem} className="mt-6">
+            <ConciergeBox />
+          </motion.div>
+
+          <motion.div variants={riseItem} className="mt-7">
             <ActivityChips
               selected={activityId}
               onToggle={toggleActivity}
@@ -548,19 +563,19 @@ export default function HomePage() {
           </motion.div>
 
           {nearby && nearby.availableCount > 0 && (
-            <motion.p
+            <motion.div
               variants={riseItem}
-              className="mt-5 flex items-center justify-center gap-2 text-sm text-muted-foreground"
+              className="mt-5 flex items-center justify-center gap-2.5 text-sm text-muted-foreground"
             >
-              <LiveDot />
+              <AvatarStack count={nearby.availableCount} />
               <span>
                 <span className="font-semibold text-foreground">
                   {nearby.availableCount}
                 </span>{" "}
                 {nearby.availableCount === 1 ? "person" : "people"} nearby{" "}
-                {nearby.availableCount === 1 ? "is" : "are"} currently available
+                {nearby.availableCount === 1 ? "is" : "are"} free right now
               </span>
-            </motion.p>
+            </motion.div>
           )}
         </motion.div>
 
@@ -1101,7 +1116,7 @@ function MatchOverlay({
 }
 
 /* ------------------------------------------------------------------ */
-/* Ambient background matching the landing page's warm mesh treatment. */
+/* Ambient background matching the landing page's monochrome mesh treatment. */
 /* ------------------------------------------------------------------ */
 
 function Atmosphere() {
@@ -1129,6 +1144,76 @@ function Atmosphere() {
         animate={reduce ? undefined : { x: [0, -30, 0], y: [0, 40, 0] }}
         transition={{ duration: 22, repeat: Infinity }}
       />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* AI concierge prompt. Reserved hero real estate for free-text intent   */
+/* ("tired, 90 minutes, want to meet 2 people nearby") that will later    */
+/* drive ranking + a venue/group recommendation. Not wired to a backend   */
+/* yet. Submitting surfaces an inline "still warming up" affordance       */
+/* rather than a dead click.                                              */
+/* ------------------------------------------------------------------ */
+
+function ConciergeBox() {
+  const reduce = useReducedMotion();
+  const [value, setValue] = React.useState("");
+  const [pinged, setPinged] = React.useState(false);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!value.trim()) return;
+    setPinged(true);
+    window.setTimeout(() => setPinged(false), 3200);
+  }
+
+  return (
+    <div className="relative mx-auto max-w-md">
+      <GlassPanel
+        withTextBacking
+        backingClassName="bg-surface/50 dark:bg-surface/40"
+        className="rounded-full p-1.5"
+      >
+        <form onSubmit={handleSubmit} className="flex items-center gap-1">
+          <Sparkles
+            className="ml-3 h-4 w-4 shrink-0 text-[var(--accent)]"
+            aria-hidden
+          />
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Tired, 90 min, want to meet 2 people nearby…"
+            aria-label="Tell the concierge what you're in the mood for"
+            className="min-w-0 flex-1 bg-transparent px-2 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+          />
+          <motion.button
+            type="submit"
+            aria-label="Ask the concierge"
+            whileTap={reduce ? undefined : { scale: 0.92 }}
+            transition={spring.snappy}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--accent)] text-[var(--accent-foreground)] disabled:opacity-40"
+            disabled={!value.trim()}
+          >
+            <ArrowUp className="h-4 w-4" />
+          </motion.button>
+        </form>
+      </GlassPanel>
+
+      <AnimatePresence>
+        {pinged && (
+          <motion.p
+            initial={reduce ? false : { opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="absolute inset-x-0 top-full mt-2 text-center text-xs text-muted-foreground"
+          >
+            The concierge is still warming up. Full launch soon.
+          </motion.p>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1231,16 +1316,6 @@ function SelectionGlow({ color }: { color: string | null }) {
 /* Pre-acceptance privacy: no member names or photos; a silhouette       */
 /* avatar stack plus the host's first name, matching the browse feed.    */
 /* ------------------------------------------------------------------ */
-
-/** Pulsing "live" indicator in the app's open/available colour. */
-function LiveDot() {
-  return (
-    <span className="relative flex h-2 w-2" aria-hidden>
-      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cat-sage opacity-60" />
-      <span className="relative inline-flex h-2 w-2 rounded-full bg-cat-sage" />
-    </span>
-  );
-}
 
 function AvatarStack({ count }: { count: number }) {
   const shown = Math.min(Math.max(count, 0), 3);
@@ -1363,7 +1438,6 @@ function NearbyFeed({
       className="mt-12"
     >
       <div className="mb-3 flex items-center gap-2">
-        <LiveDot />
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Live nearby
         </h2>

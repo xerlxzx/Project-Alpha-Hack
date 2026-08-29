@@ -94,7 +94,7 @@ function buildTagPrompt(freeText: string): string {
     "meetup app's onboarding. Convert their free-text answer into a short",
     "list of editable interest/activity tags (2-6 words each, no hashtags,",
     "no punctuation-only tags).",
-    "Return ONLY JSON matching the given schema — no prose.",
+    "Return ONLY JSON matching the given schema. No prose.",
     `Answer: ${JSON.stringify(freeText)}`,
   ].join("\n");
 }
@@ -144,7 +144,7 @@ function buildSuggestPrompt(current: string[]): string {
     "interests they've already added, suggest up to 6 ADDITIONAL related",
     "interest/activity tags they might also enjoy. Each tag 1-3 words, no",
     "hashtags, no duplicates of what they already have.",
-    "Return ONLY JSON matching the given schema — no prose.",
+    "Return ONLY JSON matching the given schema. No prose.",
     `Already added: ${JSON.stringify(current)}`,
   ].join("\n");
 }

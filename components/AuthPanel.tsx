@@ -209,7 +209,7 @@ export function AuthPanel({ className, defaultMode = "signin" }: AuthPanelProps)
           <p className="text-sm text-muted-foreground">
             {isSignin
               ? "Welcome back. Continue with your university email."
-              : "Join with your university email — students only."}
+              : "Join with your university email. Students only."}
           </p>
         </motion.div>
 

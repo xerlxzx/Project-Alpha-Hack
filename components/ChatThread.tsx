@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import { sendChatMessage } from "@/app/meetup/[id]/actions"
+import { sendChatMessage } from "@/app/(app)/meetup/[id]/actions"
 
 // Local fallback while components/motion/tokens is unavailable.
 const bubbleSpring = { type: "spring", stiffness: 320, damping: 24 } as const
