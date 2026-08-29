@@ -128,7 +128,7 @@ function fallbackSteps(): AgentStep[] {
     { key: "plan", label: "Analyzing group interests", status: "done" },
     { key: "search", label: "Searching Google Places", status: "done" },
     { key: "candidates", label: "Found 0 candidates", status: "done", detail: "Live search failed after one retry" },
-    { key: "rank", label: "Ranking by fit", status: "done", detail: "Skipped — using cached fallback" },
+    { key: "rank", label: "Ranking by fit", status: "done", detail: "Skipped, using cached fallback" },
     {
       key: "selected",
       label: `Selected: ${FALLBACK_RECOMMENDATION.venueName}`,

@@ -67,9 +67,9 @@ export default async function ProfilePage() {
   const weeklyGoal = prefRow?.weekly_goal ?? 0
   const badgeCodes = (badgeRows ?? []).map((row) => row.code)
 
-  // `momentum_events` alone has no category/place columns - that data lives
+  // `momentum_events` alone has no category/place columns; that data lives
   // on the joined `activity_recommendations` row. There is no `category`
-  // column anywhere in the schema yet, so `categoriesTried` is honestly 0
+  // column anywhere in the schema yet, so `categoriesTried` is 0
   // below rather than a fabricated guess; `placeId` is real, joined here.
   const activityIds = events
     .map((event) => event.activityId)
@@ -95,7 +95,7 @@ export default async function ProfilePage() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-8 px-5 py-10">
       <header className="flex flex-col items-center gap-1 text-center">
-        <p className="text-sm text-muted-foreground">Your Project Alpha</p>
+        <p className="text-sm text-muted-foreground">Profile</p>
         <h1 className="font-display text-2xl text-foreground">This week&apos;s progress</h1>
       </header>
 

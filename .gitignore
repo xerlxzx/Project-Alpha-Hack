@@ -49,5 +49,8 @@ CLAUDE.md
 .cursor/
 .vscode/
 
+# git worktrees (isolated feature checkouts)
+.worktrees/
+
 # Supabase CLI cache (linked project ref, org id)
 supabase/.temp/

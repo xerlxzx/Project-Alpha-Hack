@@ -86,7 +86,7 @@ export function ActivityPassport({
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {privilegesUnlocked
                     ? "Create and host your own public meetup."
-                    : `Locked until level 2 — ${activitiesUntilUnlock} ${
+                    : `Locked until level 2, with ${activitiesUntilUnlock} ${
                         activitiesUntilUnlock === 1 ? "activity" : "activities"
                       } to go.`}
                 </p>
@@ -98,7 +98,7 @@ export function ActivityPassport({
             {privilegesUnlocked && (
               <Link
                 href="/meetups/create"
-                className="mt-3 inline-flex min-h-10 items-center justify-center rounded-full bg-amber-500 px-4 text-sm font-semibold text-stone-950 transition-colors hover:bg-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:ring-offset-background"
+                className="mt-3 inline-flex min-h-10 items-center justify-center rounded-full bg-accent px-4 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 dark:ring-offset-background"
               >
                 Host an activity
               </Link>
@@ -113,8 +113,8 @@ export function ActivityPassport({
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {privilegesUnlocked
-                    ? "Unlocked — your suggestions can now stretch beyond familiar picks."
-                    : `Locked until level 2 — complete ${activitiesUntilUnlock} more ${
+                    ? "Unlocked, so your suggestions can now stretch beyond familiar picks."
+                    : `Locked until level 2, with ${activitiesUntilUnlock} more ${
                         activitiesUntilUnlock === 1 ? "activity" : "activities"
                       }.`}
                 </p>

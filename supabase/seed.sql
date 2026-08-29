@@ -8,7 +8,7 @@
 -- satisfy any policy).
 --
 -- Fixed UUID scheme (all under one root so they're easy to recognise/grep):
---   Users            00000000-0000-0000-0001-0000000000NN   NN = 01..12 (01 = active demo user)
+--   Users            00000000-0000-0000-0001-0000000000NN   NN = 01..13 (01 = active demo user, 13 = fresh first-run demo user)
 --   Auth identities   00000000-0000-0000-0002-0000000000NN   mirrors the user NN
 --   Meetups           00000000-0000-0000-0003-0000000000NN   01 confirmed · 02 completed (past) · 03-05 user-created A/B/C
 --   Activity recs      00000000-0000-0000-0004-0000000000NN  01 confirmed-meetup rec · 02 completed-meetup rec · 03-05 meetup A/B/C recs
@@ -61,7 +61,13 @@ values
   ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0001-000000000009', 'authenticated', 'authenticated', 'aisha.rahman@student.uts.edu.au', extensions.crypt('DemoPass!2026', extensions.gen_salt('bf')), now(), now(), '{"provider":"email","providers":["email"]}', '{"first_name":"Aisha"}', now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0001-000000000010', 'authenticated', 'authenticated', 'ben.torres@student.unsw.edu.au', extensions.crypt('DemoPass!2026', extensions.gen_salt('bf')), now(), now(), '{"provider":"email","providers":["email"]}', '{"first_name":"Ben"}', now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0001-000000000011', 'authenticated', 'authenticated', 'chloe.zhang@usyd.edu.au', extensions.crypt('DemoPass!2026', extensions.gen_salt('bf')), now(), now(), '{"provider":"email","providers":["email"]}', '{"first_name":"Chloe"}', now(), now(), '', '', '', ''),
-  ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0001-000000000012', 'authenticated', 'authenticated', 'noah.williams@student.unsw.edu.au', extensions.crypt('DemoPass!2026', extensions.gen_salt('bf')), now(), now(), '{"provider":"email","providers":["email"]}', '{"first_name":"Noah"}', now(), now(), '', '', '', '')
+  ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0001-000000000012', 'authenticated', 'authenticated', 'noah.williams@student.unsw.edu.au', extensions.crypt('DemoPass!2026', extensions.gen_salt('bf')), now(), now(), '{"provider":"email","providers":["email"]}', '{"first_name":"Noah"}', now(), now(), '', '', '', ''),
+  -- Fresh first-run demo user (NN=13). Deliberately has NO profile,
+  -- preferences, or availability rows below, so the "Enter demo" button
+  -- (components/demo-login-action.ts points here) lands on onboarding and the
+  -- whole setup flow is walkable. Only the auth + public.users rows exist, so
+  -- onboarding's saveOnboarding can satisfy its FK to public.users.
+  ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0001-000000000013', 'authenticated', 'authenticated', 'demo.new@usyd.edu.au', extensions.crypt('DemoPass!2026', extensions.gen_salt('bf')), now(), now(), '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '')
 on conflict (id) do nothing;
 
 insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
@@ -77,7 +83,8 @@ values
   ('00000000-0000-0000-0002-000000000009', '00000000-0000-0000-0001-000000000009', '00000000-0000-0000-0001-000000000009', jsonb_build_object('sub', '00000000-0000-0000-0001-000000000009', 'email', 'aisha.rahman@student.uts.edu.au'), 'email', now(), now(), now()),
   ('00000000-0000-0000-0002-000000000010', '00000000-0000-0000-0001-000000000010', '00000000-0000-0000-0001-000000000010', jsonb_build_object('sub', '00000000-0000-0000-0001-000000000010', 'email', 'ben.torres@student.unsw.edu.au'), 'email', now(), now(), now()),
   ('00000000-0000-0000-0002-000000000011', '00000000-0000-0000-0001-000000000011', '00000000-0000-0000-0001-000000000011', jsonb_build_object('sub', '00000000-0000-0000-0001-000000000011', 'email', 'chloe.zhang@usyd.edu.au'), 'email', now(), now(), now()),
-  ('00000000-0000-0000-0002-000000000012', '00000000-0000-0000-0001-000000000012', '00000000-0000-0000-0001-000000000012', jsonb_build_object('sub', '00000000-0000-0000-0001-000000000012', 'email', 'noah.williams@student.unsw.edu.au'), 'email', now(), now(), now())
+  ('00000000-0000-0000-0002-000000000012', '00000000-0000-0000-0001-000000000012', '00000000-0000-0000-0001-000000000012', jsonb_build_object('sub', '00000000-0000-0000-0001-000000000012', 'email', 'noah.williams@student.unsw.edu.au'), 'email', now(), now(), now()),
+  ('00000000-0000-0000-0002-000000000013', '00000000-0000-0000-0001-000000000013', '00000000-0000-0000-0001-000000000013', jsonb_build_object('sub', '00000000-0000-0000-0001-000000000013', 'email', 'demo.new@usyd.edu.au'), 'email', now(), now(), now())
 on conflict (provider, provider_id) do nothing;
 
 -- ---------------------------------------------------------------------------
@@ -96,7 +103,10 @@ insert into public.users (id, university_email, is_verified, is_over_18) values
   ('00000000-0000-0000-0001-000000000009', 'aisha.rahman@student.uts.edu.au', true, true),
   ('00000000-0000-0000-0001-000000000010', 'ben.torres@student.unsw.edu.au', true, true),
   ('00000000-0000-0000-0001-000000000011', 'chloe.zhang@usyd.edu.au', true, true),
-  ('00000000-0000-0000-0001-000000000012', 'noah.williams@student.unsw.edu.au', true, true)
+  ('00000000-0000-0000-0001-000000000012', 'noah.williams@student.unsw.edu.au', true, true),
+  -- Fresh first-run demo user: verified + over 18 so it clears gating, but has
+  -- no profile/preferences/availability yet (see auth.users note above).
+  ('00000000-0000-0000-0001-000000000013', 'demo.new@usyd.edu.au', true, true)
 on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------

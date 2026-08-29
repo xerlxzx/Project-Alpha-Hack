@@ -6,9 +6,16 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   CalendarClock,
   Clock,
+  Coffee,
+  Compass,
+  Feather,
+  GraduationCap,
   Loader2,
   MapPin,
   SlidersHorizontal,
+  Sparkles,
+  User,
+  UtensilsCrossed,
   Wallet,
   Zap,
 } from "lucide-react";
@@ -98,9 +105,279 @@ const SOCIAL_ENERGY_OPTIONS: { label: string; value: SocialEnergy }[] = [
   { label: "High", value: "high" },
 ];
 
+function rangeOptions(
+  min: number,
+  max: number,
+  step: number,
+  format: (v: number) => string,
+): { value: number; label: string }[] {
+  const out: { value: number; label: string }[] = [];
+  for (let v = min; v <= max + 1e-9; v += step) {
+    const n = Math.round(v * 1000) / 1000;
+    out.push({ value: n, label: format(n) });
+  }
+  return out;
+}
+
+const START_OPTIONS: { value: StartChoice; label: string }[] = [
+  { value: "now", label: "Now" },
+  { value: "1h", label: "In 1 hour" },
+  { value: "evening", label: "This evening" },
+];
+const TRAVEL_OPTIONS = rangeOptions(1, 30, 1, (v) => `${v} km`);
+const BUDGET_OPTIONS = rangeOptions(0, 100, 5, (v) => `$${v}`);
+
+const SUBTITLES = [
+  "One tap and we start matching you with people free right now, or plan something for later.",
+  "Hungry, bored, or up for a run? Find someone nearby who's free too.",
+  "Grab food, study together, hit the court, or see who's around.",
+  "Say you're free and we'll find people close by who are too.",
+  "Coffee, a workout, a study session, or something spontaneous. Pick your energy.",
+  "The best plans happen last minute. Find someone nearby in one tap.",
+  "People near you are free right now. Want to meet up?",
+  "Food, study, sport, or something you haven't thought of yet. Start here.",
+];
+
+/* ------------------------------------------------------------------ */
+/* Activity intents. A tapped chip personalises the hero (copy + glow)  */
+/* and rides along as `proposedActivity` in the match request, where    */
+/* lib/matcher gates it against the excluded-activity list. Selected     */
+/* styling follows the category-chip convention in GroupPreview.tsx.     */
+/* ------------------------------------------------------------------ */
+
+// Chip ids are the visible activities; surprise ids are hidden activities that
+// only "Surprise me" can land on; no chip ever renders for them.
+type ChipActivityId = "food" | "study" | "coffee" | "badminton" | "explore";
+type SurpriseActivityId =
+  | "bouldering"
+  | "live_music"
+  | "board_games"
+  | "gallery"
+  | "night_market";
+type ActivityId = ChipActivityId | SurpriseActivityId;
+
+// Shared shape that personalises the hero (tagline + glow) and supplies
+// proposedActivity to the matcher, used by both the visible chips and the
+// hidden surprise-only activities.
+interface ActivityMeta {
+  id: ActivityId;
+  label: string;
+  /** Sent as proposedActivity; null means "open to anything". */
+  proposed: string | null;
+  /** Personalised subtitle shown while this activity is active. */
+  tagline: string;
+  /** Ambient glow colour that crossfades in behind the hero. */
+  glow: string;
+}
+
+// A visible chip additionally carries its icon and selected-state styling.
+interface Activity extends ActivityMeta {
+  Icon: React.ComponentType<{ className?: string }>;
+  /** Static (JIT-scannable) classes for the selected state. */
+  selectedClass: string;
+}
+
+const ACTIVITIES: Activity[] = [
+  {
+    id: "food",
+    label: "Food",
+    Icon: UtensilsCrossed,
+    proposed: "food",
+    tagline: "Find someone nearby to grab a bite with.",
+    glow: "var(--cat-clay)",
+    selectedClass: "border-cat-clay/45 bg-cat-clay/25 text-cat-foreground",
+  },
+  {
+    id: "study",
+    label: "Study",
+    Icon: GraduationCap,
+    proposed: "study",
+    tagline: "Pair up for a focused study session close by.",
+    glow: "var(--cat-blue)",
+    selectedClass: "border-cat-blue/45 bg-cat-blue/25 text-cat-foreground",
+  },
+  {
+    id: "coffee",
+    label: "Coffee",
+    Icon: Coffee,
+    proposed: "coffee",
+    tagline: "Someone near you is up for a coffee too.",
+    glow: "var(--cat-teal)",
+    selectedClass: "border-cat-teal/45 bg-cat-teal/25 text-cat-foreground",
+  },
+  {
+    id: "badminton",
+    label: "Badminton",
+    Icon: Feather,
+    proposed: "badminton",
+    tagline: "Grab a court and find a hitting partner nearby.",
+    glow: "var(--cat-sage)",
+    selectedClass: "border-cat-sage/45 bg-cat-sage/25 text-cat-foreground",
+  },
+  {
+    id: "explore",
+    label: "Explore",
+    Icon: Compass,
+    proposed: null,
+    tagline: "Open to anything — we'll surface something new nearby.",
+    glow: "var(--cat-plum)",
+    selectedClass: "border-cat-plum/45 bg-cat-plum/25 text-cat-foreground",
+  },
+];
+
+// Hidden surprise-only activities. These never render as chips; "Surprise me"
+// rotates them into its pool so it can land on something you can't already see.
+// Each still personalises the hero and passes a matcher-safe proposedActivity
+// (kept clear of the excluded-activity patterns in lib/matcher/loadPool.ts).
+const SURPRISE_ACTIVITIES: ActivityMeta[] = [
+  {
+    id: "bouldering",
+    label: "Bouldering",
+    proposed: "bouldering",
+    tagline: "Chalk up and find a bouldering partner at a gym nearby.",
+    glow: "var(--cat-clay)",
+  },
+  {
+    id: "live_music",
+    label: "Live music",
+    proposed: "live music",
+    tagline: "Catch a local set with someone who's up for it too.",
+    glow: "var(--cat-plum)",
+  },
+  {
+    id: "board_games",
+    label: "Board games",
+    proposed: "board games",
+    tagline: "Find a board-game café and a few players close by.",
+    glow: "var(--cat-blue)",
+  },
+  {
+    id: "gallery",
+    label: "Gallery",
+    proposed: "art gallery",
+    tagline: "Wander a gallery or exhibition with someone new.",
+    glow: "var(--cat-teal)",
+  },
+  {
+    id: "night_market",
+    label: "Night market",
+    proposed: "night market",
+    tagline: "Graze a night market with people nearby.",
+    glow: "var(--cat-sage)",
+  },
+];
+
+// Every activity the hero can reflect (chips + hidden surprises) for id lookup.
+const ALL_ACTIVITIES: ActivityMeta[] = [...ACTIVITIES, ...SURPRISE_ACTIVITIES];
+
+const ACTIVITY_STORAGE_KEY = "alpha:home:activity";
+
+// Mirrors the GET /api/nearby response shapes (app/api/nearby/route.ts's
+// NearbyEvent / NearbyResponse). Kept local to avoid importing server code.
+interface NearbyEvent {
+  id: string;
+  title: string;
+  venueName: string | null;
+  hostFirstName: string | null;
+  whenLabel: string;
+  distanceLabel: string;
+  memberCount: number;
+  spotsLeft: number;
+}
+
+interface NearbyResponse {
+  name: string | null;
+  availableCount: number;
+  events: NearbyEvent[];
+}
+
+function greetingFor(hour: number): string {
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
 export default function HomePage() {
   const router = useRouter();
   const reduce = useReducedMotion();
+
+  // SSR renders index 0 for a stable first paint; the client swaps in a random
+  // pick after mount, so every startup shows a different subtitle.
+  const [subtitle, setSubtitle] = React.useState(SUBTITLES[0]);
+  React.useEffect(() => {
+    // Deliberate post-mount swap for hydration safety, not a cascade.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSubtitle(SUBTITLES[Math.floor(Math.random() * SUBTITLES.length)]);
+  }, []);
+
+  // Chosen activity intent. SSR renders unselected; the client restores the
+  // last pick after mount so the hero greets returning users with their vibe.
+  const [activityId, setActivityId] = React.useState<ActivityId | null>(null);
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem(ACTIVITY_STORAGE_KEY);
+      if (saved && ALL_ACTIVITIES.some((a) => a.id === saved)) {
+        // Post-mount restore for hydration safety, not a cascade.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setActivityId(saved as ActivityId);
+      }
+    } catch {
+      /* storage unavailable (private mode, blocked); no restore. */
+    }
+  }, []);
+  React.useEffect(() => {
+    try {
+      if (activityId) localStorage.setItem(ACTIVITY_STORAGE_KEY, activityId);
+      else localStorage.removeItem(ACTIVITY_STORAGE_KEY);
+    } catch {
+      /* ignore persistence failures. */
+    }
+  }, [activityId]);
+
+  const activity = ALL_ACTIVITIES.find((a) => a.id === activityId) ?? null;
+
+  function toggleActivity(id: ActivityId) {
+    setActivityId((cur) => (cur === id ? null : id));
+  }
+
+  // Surprise me: pick a concrete activity (never "Explore") from the full pool
+  // of visible chips *and* hidden surprise-only activities, so it can land on
+  // something that isn't shown as a chip. Re-rolls to a different one on repeat
+  // taps so it always feels like a fresh nudge; a hidden pick lights no chip.
+  function surpriseMe() {
+    const pool = ALL_ACTIVITIES.filter((a) => a.id !== "explore");
+    const fresh = pool.filter((a) => a.id !== activityId);
+    const from = fresh.length > 0 ? fresh : pool;
+    setActivityId(from[Math.floor(Math.random() * from.length)].id);
+  }
+
+  // Live home feed: the greeting name, how many people are free right now, and
+  // the forming meetups nearby. Fetched once on mount (setState is async here,
+  // inside the promise, so it doesn't cascade).
+  const [nearby, setNearby] = React.useState<NearbyResponse | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    fetch("/api/nearby")
+      .then((r) => (r.ok ? (r.json() as Promise<NearbyResponse>) : null))
+      .then((data) => {
+        if (alive && data) setNearby(data);
+      })
+      .catch(() => {
+        /* feed is non-critical; a failed load only hides it. */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Time-of-day greeting. SSR renders no greeting line for a stable first
+  // paint; the client fills it in from the viewer's local clock after mount.
+  const [greeting, setGreeting] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    // Post-mount read of the local clock for hydration safety, not a cascade.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setGreeting(greetingFor(new Date().getHours()));
+  }, []);
 
   const [controls, setControls] = React.useState<Controls>(defaultControls);
   const [sheetMode, setSheetMode] = React.useState<Mode>("im_free");
@@ -138,6 +415,10 @@ export default function HomePage() {
           travelKm: c.travelKm,
           budgetAud: c.budgetAud,
           socialEnergy: c.socialEnergy,
+          // Selected in the hero; both the main CTA and the sheet's confirm
+          // route through here, so the chip is honoured either way.
+          proposedActivity:
+            ALL_ACTIVITIES.find((a) => a.id === activityId)?.proposed ?? null,
           availability: [{ startAt, endAt, mode }],
         }),
       });
@@ -171,79 +452,123 @@ export default function HomePage() {
   }
 
   return (
-    <div className="relative min-h-dvh overflow-x-clip bg-surface">
+    <div className="home-theme relative min-h-dvh overflow-x-clip bg-black">
       <Atmosphere />
+      <SelectionGlow color={activity?.glow ?? null} />
 
-      <main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-6 py-16">
+      <main className="mx-auto flex min-h-dvh max-w-lg flex-col px-6 pt-16 pb-28">
         <motion.div
           variants={stagger(0.15, 0.1)}
           initial={reduce ? undefined : "hidden"}
           animate={reduce ? undefined : "show"}
           className="text-center"
         >
-          <motion.span
-            variants={riseItem}
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-            Later today
-          </motion.span>
+          <motion.div variants={riseItem} className="min-h-[1.25rem]">
+            <AnimatePresence>
+              {greeting && (
+                <motion.p
+                  key="greeting"
+                  initial={reduce ? false : { opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-sm font-medium text-[var(--accent)]"
+                >
+                  {greeting}
+                  {nearby?.name ? `, ${nearby.name}` : ""}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </motion.div>
 
           <motion.h1
             variants={riseItem}
-            className="mt-5 font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl"
+            className="mt-2 font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl"
           >
-            What are you up for?
+            What do you feel like doing?
           </motion.h1>
           <motion.p
             variants={riseItem}
-            className="mx-auto mt-3 max-w-sm text-muted-foreground"
+            className="mx-auto mt-3 min-h-[2.5rem] max-w-sm text-muted-foreground"
           >
-            One tap and Project Alpha starts matching you with people free right
-            now — or plan something for later.
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={activity ? activity.id : "default"}
+                initial={reduce ? false : { opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduce ? { opacity: 0 } : { opacity: 0, y: -4 }}
+                transition={{ duration: 0.25 }}
+                className="block"
+              >
+                {activity ? activity.tagline : subtitle}
+              </motion.span>
+            </AnimatePresence>
           </motion.p>
+
+          <motion.div variants={riseItem} className="mt-8">
+            <ActivityChips
+              selected={activityId}
+              onToggle={toggleActivity}
+              onSurprise={surpriseMe}
+            />
+          </motion.div>
 
           <motion.div
             variants={riseItem}
-            className="mt-10 flex flex-col items-center gap-3"
+            className="mt-8 flex items-center justify-center gap-3"
           >
-            <div className="flex items-center gap-3">
-              <PrimaryCTA
-                onClick={() => startMatch("im_free", controls)}
-                glow={!reduce}
-              >
-                <Zap className="h-4 w-4" />
-                I&apos;m free
-              </PrimaryCTA>
-              <button
-                type="button"
-                onClick={() => {
-                  setSheetMode("im_free");
-                  setSheetOpen(true);
-                }}
-                aria-label="Customize availability, travel, budget and social energy"
-                className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full border border-border text-foreground/70 transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-              >
-                <SlidersHorizontal className="h-4.5 w-4.5" />
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Defaults are ready — customize if you want.
-            </p>
-
+            <PrimaryCTA
+              onClick={() => startMatch("im_free", controls)}
+              glow={!reduce}
+            >
+              <Zap className="h-4 w-4" />
+              Find people now
+            </PrimaryCTA>
+            <button
+              type="button"
+              onClick={() => {
+                setSheetMode("im_free");
+                setSheetOpen(true);
+              }}
+              aria-label="Customize availability, travel, budget and social energy"
+              className="grid h-14 w-14 shrink-0 place-items-center rounded-full border border-border text-foreground/70 transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            >
+              <SlidersHorizontal className="h-4.5 w-4.5" />
+            </button>
             <button
               type="button"
               onClick={() => {
                 setSheetMode("plan_ahead");
                 setSheetOpen(true);
               }}
-              className="mt-4 inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              aria-label="Plan ahead"
+              className="grid h-14 w-14 shrink-0 place-items-center rounded-full border border-border text-foreground/70 transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
             >
-              <CalendarClock className="h-4 w-4" />
-              Plan ahead
+              <CalendarClock className="h-4.5 w-4.5" />
             </button>
           </motion.div>
+
+          {nearby && nearby.availableCount > 0 && (
+            <motion.p
+              variants={riseItem}
+              className="mt-5 flex items-center justify-center gap-2 text-sm text-muted-foreground"
+            >
+              <LiveDot />
+              <span>
+                <span className="font-semibold text-foreground">
+                  {nearby.availableCount}
+                </span>{" "}
+                {nearby.availableCount === 1 ? "person" : "people"} nearby{" "}
+                {nearby.availableCount === 1 ? "is" : "are"} currently available
+              </span>
+            </motion.p>
+          )}
         </motion.div>
+
+        <NearbyFeed
+          events={nearby?.events ?? []}
+          loaded={nearby !== null}
+          reduce={!!reduce}
+        />
       </main>
 
       <ControlsSheet
@@ -293,12 +618,12 @@ function ControlsSheet({
       <SheetContent
         side="bottom"
         showCloseButton={false}
-        className="max-h-[88vh] gap-0 border-0 bg-transparent p-0 shadow-none"
+        className="max-h-[88vh] gap-0 border-0 bg-transparent p-0 shadow-none data-[side=bottom]:border-t-0"
       >
         <GlassPanel
           withTextBacking
           transitioning
-          className="max-h-[88vh] overflow-y-auto rounded-b-none rounded-t-3xl px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3"
+          className="max-h-[88vh] overflow-y-auto rounded-b-none rounded-t-3xl border-t-transparent px-5 pb-0 pt-3 shadow-none"
         >
           <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-foreground/15" />
 
@@ -307,7 +632,7 @@ function ControlsSheet({
               Your plan
             </SheetTitle>
             <SheetDescription>
-              Tune availability, distance, budget and energy — or leave the
+              Tune availability, distance, budget and energy, or leave the
               defaults.
             </SheetDescription>
           </SheetHeader>
@@ -318,7 +643,7 @@ function ControlsSheet({
               type="button"
               onClick={() => onModeChange("im_free")}
               className={cn(
-                "rounded-full py-2 text-sm font-medium transition-colors",
+                "rounded-full py-3.5 text-sm font-medium transition-colors",
                 mode === "im_free"
                   ? "bg-[var(--accent)] text-[var(--accent-foreground)]"
                   : "text-muted-foreground hover:text-foreground",
@@ -330,7 +655,7 @@ function ControlsSheet({
               type="button"
               onClick={() => onModeChange("plan_ahead")}
               className={cn(
-                "rounded-full py-2 text-sm font-medium transition-colors",
+                "rounded-full py-3.5 text-sm font-medium transition-colors",
                 mode === "plan_ahead"
                   ? "bg-[var(--accent)] text-[var(--accent-foreground)]"
                   : "text-muted-foreground hover:text-foreground",
@@ -344,13 +669,7 @@ function ControlsSheet({
           <Field icon={<Clock className="h-4 w-4" />} label="Starting">
             {mode === "im_free" ? (
               <ChipRow>
-                {(
-                  [
-                    { label: "Now", value: "now" },
-                    { label: "In 1 hour", value: "1h" },
-                    { label: "This evening", value: "evening" },
-                  ] as { label: string; value: StartChoice }[]
-                ).map((opt) => (
+                {START_OPTIONS.map((opt) => (
                   <Chip
                     key={opt.value}
                     active={controls.startChoice === opt.value}
@@ -392,35 +711,21 @@ function ControlsSheet({
             </ChipRow>
           </Field>
 
-          <Field
-            icon={<MapPin className="h-4 w-4" />}
-            label="Travel range"
-            value={`Up to ${controls.travelKm} km`}
-          >
-            <input
-              type="range"
-              min={1}
-              max={30}
-              step={1}
+          <Field icon={<MapPin className="h-4 w-4" />} label="Travel range">
+            <WheelPicker
+              ariaLabel="Travel range in kilometres"
+              options={TRAVEL_OPTIONS}
               value={controls.travelKm}
-              onChange={(e) => onPatch({ travelKm: Number(e.target.value) })}
-              className="w-full accent-[var(--accent)]"
+              onChange={(v) => onPatch({ travelKm: v })}
             />
           </Field>
 
-          <Field
-            icon={<Wallet className="h-4 w-4" />}
-            label="Budget"
-            value={`Up to $${controls.budgetAud}`}
-          >
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={5}
+          <Field icon={<Wallet className="h-4 w-4" />} label="Budget">
+            <WheelPicker
+              ariaLabel="Budget in dollars"
+              options={BUDGET_OPTIONS}
               value={controls.budgetAud}
-              onChange={(e) => onPatch({ budgetAud: Number(e.target.value) })}
-              className="w-full accent-[var(--accent)]"
+              onChange={(v) => onPatch({ budgetAud: v })}
             />
           </Field>
 
@@ -438,13 +743,27 @@ function ControlsSheet({
             </ChipRow>
           </Field>
 
-          <PrimaryCTA
-            onClick={() => onConfirm(mode)}
-            glow={false}
-            className="mt-6 mb-2 w-full justify-center"
-          >
-            {mode === "im_free" ? "I'm free — find my people" : "Lock in my plan"}
-          </PrimaryCTA>
+          {/* Sticky footer: CTA stays reachable even if content ever scrolls.
+              The CTA carries its own frosted backing, so no separate fade layer
+              is needed behind it. This owns the panel's bottom spacing so the
+              gap below the button is consistent and clears the account badge. */}
+          <div className="sticky bottom-0 -mx-5 mt-5 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4">
+            <PrimaryCTA
+              onClick={() => onConfirm(mode)}
+              glow={false}
+              fullWidth
+              className={cn(
+                "w-full justify-center",
+                // Conform to the translucent glass surface above: drop the solid
+                // accent fill/shadow for the same frosted tint + hairline border.
+                "border border-white/20 bg-white/10 text-foreground shadow-none",
+                "backdrop-blur-xl backdrop-saturate-150",
+                "dark:border-white/10 dark:bg-white/5",
+              )}
+            >
+              {mode === "im_free" ? "Find my people" : "Lock in my plan"}
+            </PrimaryCTA>
+          </div>
         </GlassPanel>
       </SheetContent>
     </Sheet>
@@ -496,7 +815,7 @@ function Chip({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+        "inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-medium transition-colors",
         active
           ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]"
           : "border-border text-muted-foreground hover:text-foreground",
@@ -504,6 +823,149 @@ function Chip({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * iOS-style vertical wheel picker: a compact drum of options that snaps under
+ * a fixed centre band, driven by native scroll physics (momentum +
+ * deceleration) via CSS scroll-snap. Rows fade and shrink away from the
+ * selection, and a soft bounding box marks the scroll area. Works for any
+ * discrete option list: numeric ranges or labelled choices alike.
+ */
+function WheelPicker<T extends string | number>({
+  options,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+  ariaLabel: string;
+}) {
+  const ROW = 38; // px height of each row
+  const VISIBLE = 3; // odd number of rows in view
+  const HEIGHT = ROW * VISIBLE;
+  const PAD = (HEIGHT - ROW) / 2;
+
+  const scrollerRef = React.useRef<HTMLDivElement>(null);
+  const isScrollingRef = React.useRef(false);
+  const rafRef = React.useRef<number | null>(null);
+  const endTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reduceMotion = useReducedMotion();
+
+  const selectedIndex = Math.max(
+    0,
+    options.findIndex((o) => o.value === value),
+  );
+
+  // Keep the scroll position aligned with the value when it changes from the
+  // outside (defaults, keyboard), never while the user is scrolling.
+  React.useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || isScrollingRef.current) return;
+    const top = selectedIndex * ROW;
+    if (Math.abs(el.scrollTop - top) > 1) {
+      el.scrollTo({ top, behavior: reduceMotion ? "auto" : "smooth" });
+    }
+  }, [selectedIndex, reduceMotion]);
+
+  const handleScroll = () => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    isScrollingRef.current = true;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      const idx = Math.max(
+        0,
+        Math.min(options.length - 1, Math.round(el.scrollTop / ROW)),
+      );
+      const next = options[idx].value;
+      if (next !== value) onChange(next);
+    });
+    if (endTimerRef.current) clearTimeout(endTimerRef.current);
+    endTimerRef.current = setTimeout(() => {
+      isScrollingRef.current = false;
+    }, 140);
+  };
+
+  const nudge = (dir: number) => {
+    const idx = Math.max(
+      0,
+      Math.min(options.length - 1, selectedIndex + dir),
+    );
+    onChange(options[idx].value);
+  };
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.02]">
+      <div
+        className="relative select-none"
+        style={{ height: HEIGHT }}
+        role="slider"
+        aria-label={ariaLabel}
+        aria-valuemin={0}
+        aria-valuemax={options.length - 1}
+        aria-valuenow={selectedIndex}
+        aria-valuetext={options[selectedIndex]?.label}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            nudge(-1);
+          } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            nudge(1);
+          }
+        }}
+      >
+        {/* Soft rounded selection band the wheel snaps under. */}
+        <div
+          className="pointer-events-none absolute inset-x-2 top-1/2 z-0 -translate-y-1/2 rounded-xl bg-foreground/[0.06]"
+          style={{ height: ROW }}
+        />
+        <div
+          ref={scrollerRef}
+          onScroll={handleScroll}
+          className="relative z-10 h-full snap-y snap-mandatory overflow-y-auto overscroll-y-contain outline-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          style={{
+            paddingBlock: PAD,
+            WebkitMaskImage:
+              "linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent)",
+            maskImage:
+              "linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent)",
+          }}
+        >
+          {options.map((opt, i) => {
+            const dist = Math.abs(i - selectedIndex);
+            const selected = opt.value === value;
+            return (
+              <div
+                key={String(opt.value)}
+                className="flex snap-center items-center justify-center"
+                style={{
+                  height: ROW,
+                  opacity: Math.max(0.25, 1 - dist * 0.32),
+                  transform: `scale(${Math.max(0.84, 1 - dist * 0.07)})`,
+                }}
+              >
+                <span
+                  className={cn(
+                    "tabular-nums transition-colors",
+                    selected
+                      ? "text-base font-semibold text-foreground"
+                      : "text-sm font-medium text-muted-foreground",
+                  )}
+                >
+                  {opt.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -564,7 +1026,7 @@ function MatchOverlay({
                   No group ready yet
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  We couldn&apos;t find enough compatible people right now —
+                  We couldn&apos;t find enough compatible people right now, so
                   you&apos;re in the pool for the next match.
                 </p>
 
@@ -646,7 +1108,7 @@ function Atmosphere() {
   const reduce = useReducedMotion();
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
-      <div className="absolute inset-0 bg-surface" />
+      <div className="absolute inset-0 bg-black" />
       <motion.div
         className="absolute -left-[10%] -top-[10%] h-[60vh] w-[60vh] rounded-full blur-[120px]"
         style={{
@@ -668,5 +1130,249 @@ function Atmosphere() {
         transition={{ duration: 22, repeat: Infinity }}
       />
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Selectable activity chips. Single-select with a tap-again escape     */
+/* hatch back to "open to anything"; "Surprise me" is an action, not a  */
+/* stored value, so it sits apart with the accent treatment.            */
+/* ------------------------------------------------------------------ */
+
+function ActivityChips({
+  selected,
+  onToggle,
+  onSurprise,
+}: {
+  selected: ActivityId | null;
+  onToggle: (id: ActivityId) => void;
+  onSurprise: () => void;
+}) {
+  const reduce = useReducedMotion();
+  return (
+    <div
+      role="group"
+      aria-label="Pick an activity"
+      className="mx-auto flex max-w-md flex-wrap items-center justify-center gap-2"
+    >
+      {ACTIVITIES.map((a) => {
+        const Icon = a.Icon;
+        const active = selected === a.id;
+        return (
+          <motion.button
+            key={a.id}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onToggle(a.id)}
+            whileTap={reduce ? undefined : { scale: 0.94 }}
+            transition={spring.snappy}
+            className={cn(
+              "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors",
+              active
+                ? a.selectedClass
+                : "border-border text-muted-foreground hover:border-foreground/25 hover:text-foreground",
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            {a.label}
+          </motion.button>
+        );
+      })}
+
+      <motion.button
+        type="button"
+        onClick={onSurprise}
+        aria-label="Surprise me with an activity"
+        whileTap={reduce ? undefined : { scale: 0.94 }}
+        transition={spring.snappy}
+        className={cn(
+          "inline-flex min-h-11 items-center gap-1.5 rounded-full border border-dashed px-3.5 text-sm font-medium transition-colors",
+          "border-[var(--accent)]/40 text-[var(--accent)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/10",
+        )}
+      >
+        <Sparkles className="h-4 w-4" />
+        Surprise me
+      </motion.button>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Ambient glow that crossfades in behind the hero, tinted by the       */
+/* chosen activity. Opacity-only per the motion rules; the colour swap   */
+/* rides an AnimatePresence key so switching activities cross-dissolves. */
+/* ------------------------------------------------------------------ */
+
+function SelectionGlow({ color }: { color: string | null }) {
+  const reduce = useReducedMotion();
+  return (
+    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
+      <AnimatePresence>
+        {color && (
+          <motion.div
+            key={color}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.16 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: reduce ? 0 : 1.1, ease: "easeInOut" }}
+            className="absolute left-1/2 top-[36%] h-[75vh] w-[75vh] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[130px]"
+            style={{
+              background: `radial-gradient(circle, ${color} 0%, transparent 70%)`,
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Live "nearby" feed of forming meetups, fed by GET /api/nearby.       */
+/* Pre-acceptance privacy: no member names or photos; a silhouette       */
+/* avatar stack plus the host's first name, matching the browse feed.    */
+/* ------------------------------------------------------------------ */
+
+/** Pulsing "live" indicator in the app's open/available colour. */
+function LiveDot() {
+  return (
+    <span className="relative flex h-2 w-2" aria-hidden>
+      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cat-sage opacity-60" />
+      <span className="relative inline-flex h-2 w-2 rounded-full bg-cat-sage" />
+    </span>
+  );
+}
+
+function AvatarStack({ count }: { count: number }) {
+  const shown = Math.min(Math.max(count, 0), 3);
+  const extra = count - shown;
+  return (
+    <div className="flex -space-x-2" aria-label={`${count} going`}>
+      {Array.from({ length: shown }).map((_, i) => (
+        <span
+          key={i}
+          className="grid h-6 w-6 place-items-center rounded-full border border-card bg-muted text-muted-foreground"
+        >
+          <User className="h-3 w-3" />
+        </span>
+      ))}
+      {extra > 0 && (
+        <span className="grid h-6 min-w-6 place-items-center rounded-full border border-card bg-muted px-1 text-[10px] font-semibold text-muted-foreground">
+          +{extra}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function EventCard({ event }: { event: NearbyEvent }) {
+  const reduce = useReducedMotion();
+  const [requested, setRequested] = React.useState(false);
+  const full = event.spotsLeft === 0;
+
+  return (
+    <motion.div
+      layout
+      initial={reduce ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={spring.gentle}
+      className="rounded-2xl border border-border bg-card/60 p-4 text-left backdrop-blur-sm"
+    >
+      <h3 className="font-heading text-base font-medium leading-snug text-foreground">
+        {event.title}
+      </h3>
+      {(event.venueName || event.hostFirstName) && (
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          {[event.venueName, event.hostFirstName && `${event.hostFirstName} hosting`]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      )}
+
+      <div className="mt-3 flex items-center gap-2">
+        <AvatarStack count={event.memberCount} />
+        <span className="text-xs font-medium text-foreground/80">
+          {event.whenLabel}
+        </span>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between">
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <MapPin className="h-3.5 w-3.5" />
+          {event.distanceLabel}
+          {!full && (
+            <span className="ml-1 text-muted-foreground/70">
+              · {event.spotsLeft} {event.spotsLeft === 1 ? "spot" : "spots"} left
+            </span>
+          )}
+        </span>
+        <motion.button
+          type="button"
+          onClick={() => setRequested(true)}
+          disabled={requested || full}
+          whileTap={reduce || requested || full ? undefined : { scale: 0.94 }}
+          transition={spring.snappy}
+          className={cn(
+            "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
+            requested
+              ? "bg-cat-sage/20 text-cat-foreground"
+              : full
+                ? "cursor-not-allowed border border-border text-muted-foreground"
+                : "bg-[var(--accent)] text-[var(--accent-foreground)] hover:bg-[var(--accent-hover)]",
+          )}
+        >
+          {requested ? "Requested" : full ? "Full" : "Join"}
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}
+
+function FeedSkeleton() {
+  return (
+    <div className="mt-12" aria-hidden>
+      <div className="mb-3 h-3 w-24 rounded bg-foreground/10" />
+      <div className="flex flex-col gap-3">
+        {[0, 1].map((i) => (
+          <div
+            key={i}
+            className="h-28 animate-pulse rounded-2xl border border-border bg-card/40"
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function NearbyFeed({
+  events,
+  loaded,
+  reduce,
+}: {
+  events: NearbyEvent[];
+  loaded: boolean;
+  reduce: boolean;
+}) {
+  if (!loaded) return <FeedSkeleton />;
+  if (events.length === 0) return null;
+
+  return (
+    <motion.section
+      initial={reduce ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4, delay: 0.15 }}
+      className="mt-12"
+    >
+      <div className="mb-3 flex items-center gap-2">
+        <LiveDot />
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Live nearby
+        </h2>
+      </div>
+      <div className="flex flex-col gap-3">
+        {events.map((event) => (
+          <EventCard key={event.id} event={event} />
+        ))}
+      </div>
+    </motion.section>
   );
 }

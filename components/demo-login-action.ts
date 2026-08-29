@@ -2,9 +2,12 @@
 
 import { getAdminSupabase } from "@/lib/supabase/server";
 
-// Seeded active user from supabase/seed.sql. The whole demo
-// journey is walkable as, without any real university email round trip.
-const DEMO_USER_EMAIL = "alex.chen@usyd.edu.au";
+// Fresh first-run demo user from supabase/seed.sql (id ...0013). It has an
+// auth + public.users row but no profile/preferences/availability, so "Enter
+// demo" lands on onboarding and the whole setup flow is walkable, without any
+// real university email round trip. (The fully-set-up Alex Chen account,
+// ...0001, still backs the sessionless demo fallback in lib/current-user.ts.)
+const DEMO_USER_EMAIL = "demo.new@usyd.edu.au";
 
 export type DemoLoginTokenResult =
   | { ok: true; email: string; tokenHash: string }
@@ -33,11 +36,29 @@ export async function requestDemoLoginToken(): Promise<DemoLoginTokenResult> {
       email: DEMO_USER_EMAIL,
     });
 
-    if (error || !data?.properties?.hashed_token) {
+    if (error || !data?.user?.id || !data.properties?.hashed_token) {
       return {
         ok: false,
         error: error?.message ?? "Could not generate a demo session token.",
       };
+    }
+
+    // Hosted projects are not guaranteed to have had the demo seed rerun.
+    // generateLink creates the Auth user when the email is missing, but that
+    // does not create the public.users row required by profiles' foreign key.
+    // Repair that parent row before handing the browser a session token.
+    const { error: publicUserError } = await admin.from("users").upsert(
+      {
+        id: data.user.id,
+        university_email: DEMO_USER_EMAIL,
+        is_verified: true,
+        is_over_18: true,
+      },
+      { onConflict: "id" }
+    );
+
+    if (publicUserError) {
+      return { ok: false, error: publicUserError.message };
     }
 
     return {

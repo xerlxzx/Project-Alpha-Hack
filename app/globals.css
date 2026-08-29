@@ -10,7 +10,8 @@
   --color-surface: var(--surface);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-display);
+  /* Display headings share the Geist sans family (Apple/system-UI direction). */
+  --font-display: var(--font-sans);
   --font-heading: var(--font-sans);
   --color-accent-hover: var(--accent-hover);
   --color-accent-active: var(--accent-active);
@@ -37,6 +38,14 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  /* Apple-inspired semantic system colors for specific functions. */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -58,91 +67,87 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Dark, premium. Deep warm-neutral charcoal surfaces (a whisper of warmth,
+   not brown) with a muted-gold accent that reads like a jewelry highlight,
+   the Linear/Apple-dark register. Colors only: typography and radius are
+   unchanged. The site is dark-only, so the base palette lives on :root (no
+   light/dark split) while `next-themes` keeps `.dark` on <html> so the
+   `dark:` utility variants that tune the glass surfaces still fire. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --surface: #faf8f5;
-  --accent: #ea7317;
-  --accent-foreground: #241505;
-  --accent-hover: #d35f0a;
-  --accent-active: #b94f08;
-  --cat-blue: #a7bfd6;
-  --cat-sage: #a9c0a0;
-  --cat-clay: #cba189;
-  --cat-plum: #bca0c0;
-  --cat-teal: #98c0bc;
-  --cat-foreground: #2b2118;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --background: oklch(0.15 0.004 90);
+  --foreground: oklch(0.955 0.004 95);
+  --card: oklch(0.188 0.005 92);
+  --card-foreground: oklch(0.955 0.004 95);
+  --popover: oklch(0.188 0.005 92);
+  --popover-foreground: oklch(0.955 0.004 95);
+  /* Neutral high-contrast solid (shadcn default buttons). Gold lives in --accent. */
+  --primary: oklch(0.92 0.004 95);
+  --primary-foreground: oklch(0.2 0.004 92);
+  --secondary: oklch(0.242 0.005 92);
+  --secondary-foreground: oklch(0.955 0.004 95);
+  --muted: oklch(0.242 0.005 92);
+  --muted-foreground: oklch(0.705 0.008 92);
+  --surface: #171512; /* deep warm-neutral; page bg on some routes, glass fallback + backing */
+  /* Muted gold / ochre accent for every CTA, link, and active state. Dark
+     foreground so text stays legible on the solid gold fill. */
+  --accent: #c9ad6e;
+  --accent-foreground: #201b0f;
+  --accent-hover: #d4ba7d;
+  --accent-active: #dfc78f;
+  --cat-blue: #4a6076;
+  --cat-sage: #5f6f4a;
+  --cat-clay: #7e5742;
+  --cat-plum: #63506a;
+  --cat-teal: #3e5b56;
+  --cat-foreground: #f3ede0;
+  /* Apple system colors (dark): functional, kept vivid against dark surfaces. */
+  --destructive: #ff453a; /* systemRed (dark) */
+  --destructive-foreground: #ffffff;
+  --success: #30d158; /* systemGreen (dark) */
+  --success-foreground: #05270f;
+  --warning: #ff9f0a; /* systemOrange (dark) */
+  --warning-foreground: #2a1800;
+  --info: #0a84ff; /* systemBlue (dark) */
+  --info-foreground: #ffffff;
+  --border: oklch(0.9 0.01 92 / 10%);
+  --input: oklch(0.9 0.01 92 / 14%);
+  --ring: oklch(0.72 0.05 87);
+  --chart-1: oklch(0.8 0.095 85);
+  --chart-2: oklch(0.68 0.05 80);
+  --chart-3: oklch(0.55 0.03 85);
+  --chart-4: oklch(0.45 0.02 90);
+  --chart-5: oklch(0.35 0.015 92);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.188 0.005 92);
+  --sidebar-foreground: oklch(0.955 0.004 95);
+  --sidebar-primary: oklch(0.8 0.095 85);
+  --sidebar-primary-foreground: oklch(0.2 0.004 92);
+  --sidebar-accent: oklch(0.242 0.005 92);
+  --sidebar-accent-foreground: oklch(0.955 0.004 95);
+  --sidebar-border: oklch(0.9 0.01 92 / 10%);
+  --sidebar-ring: oklch(0.72 0.05 87);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --surface: #201d1a;
-  --accent: #f59e0b;
-  --accent-foreground: #241505;
-  --accent-hover: #ffb03d;
-  --accent-active: #ffc670;
-  --cat-blue: #3e5872;
-  --cat-sage: #47593f;
-  --cat-clay: #6e4b39;
-  --cat-plum: #5a4560;
-  --cat-teal: #35524e;
-  --cat-foreground: #f5f1ec;
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+/* The onboarding flow uses the brighter amber selected in the design review.
+   Keep the override route-scoped so every accent-backed control in the flow
+   stays consistent without changing the established palette elsewhere. */
+.onboarding-theme {
+  --background: #000000;
+  --card: #000000;
+  --popover: #000000;
+  --surface: #000000;
+  --accent: #e79913;
+  --accent-foreground: #1f1503;
+  --accent-hover: #f0aa32;
+  --accent-active: #cc820b;
+  --ring: #e79913;
+}
+
+html:has(.onboarding-theme),
+body:has(.onboarding-theme),
+html:has(.home-theme),
+body:has(.home-theme) {
+  background: #000000;
 }
 
 @layer base {
@@ -154,5 +159,15 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer utilities {
+  /* Fine fractal-noise grain. Sits on a static layer over frosted glass and the
+     hero flow so translucent surfaces read as a real material, not flat film.
+     Transform/opacity only, never animated (backdrop-filter stays static). */
+  .noise-grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
   }
 }

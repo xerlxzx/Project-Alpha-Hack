@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "meetup_not_found" }, { status: 404 })
   }
 
-  // Idempotent: re-running the demo just returns the already-completed
+  // Idempotent: re-running the demo returns the already-completed
   // state instead of erroring, so the pitch can be rehearsed repeatedly.
   if (meetup.status === "completed") {
     return NextResponse.json({ ok: true, status: "completed", alreadyCompleted: true })

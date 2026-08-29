@@ -11,6 +11,12 @@ export interface GlassPanelProps extends React.HTMLAttributes<HTMLDivElement> {
    */
   withTextBacking?: boolean;
   /**
+   * Override the backing layer's classes (e.g. a lighter tint) when a surface
+   * wants more of the content behind it to show through. Only used with
+   * `withTextBacking`. Defaults to `bg-surface/70 dark:bg-surface/60`.
+   */
+  backingClassName?: string;
+  /**
    * Enables `will-change: backdrop-filter` during animation. Disable at rest
    * so the browser releases the compositing layer.
    */
@@ -24,7 +30,7 @@ export interface GlassPanelProps extends React.HTMLAttributes<HTMLDivElement> {
  */
 export const GlassPanel = React.forwardRef<HTMLDivElement, GlassPanelProps>(
   (
-    { className, children, withTextBacking, transitioning, style, ...props },
+    { className, children, withTextBacking, backingClassName, transitioning, style, ...props },
     ref,
   ) => {
     return (
@@ -48,7 +54,10 @@ export const GlassPanel = React.forwardRef<HTMLDivElement, GlassPanelProps>(
         {withTextBacking && (
           <div
             aria-hidden
-            className="absolute inset-0 -z-10 rounded-2xl bg-surface/70 dark:bg-surface/60"
+            className={cn(
+              "absolute inset-0 -z-10 rounded-[inherit]",
+              backingClassName ?? "bg-surface/70 dark:bg-surface/60",
+            )}
           />
         )}
         {children}

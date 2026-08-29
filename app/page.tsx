@@ -3,90 +3,92 @@
 import * as React from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
+import HalftoneFlow from "@/components/ui/halftone-flow";
 import { AuthPanel } from "@/components/AuthPanel";
 import { DemoLogin } from "@/components/DemoLogin";
-import { Reveal } from "@/components/motion/Reveal";
-import { stagger, riseItem, ease } from "@/components/motion/tokens";
+import { spring } from "@/components/motion/tokens";
 
-const TAGLINE = "Stop scrolling. Start doing something, with someone.";
+// Hero entrance: a slower, more luxurious settle than the app-wide default so
+// the title feels cinematic, rising and de-blurring in sequence.
+const heroStagger = {
+  hidden: {},
+  show: { transition: { delayChildren: 0.25, staggerChildren: 0.16 } },
+};
+const heroItem = {
+  hidden: { opacity: 0, y: 24, filter: "blur(10px)" },
+  show: { opacity: 1, y: 0, filter: "blur(0px)", transition: spring.soft },
+};
 
 export default function LandingPage() {
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-x-clip px-6 py-16">
-      <Atmosphere />
+      <HeroBackdrop />
 
       <motion.div
-        variants={stagger(0.15, 0.12)}
+        variants={heroStagger}
         initial="hidden"
         animate="show"
         className="flex w-full max-w-sm flex-col items-center text-center"
       >
         <motion.h1
-          variants={riseItem}
-          className="font-display text-5xl font-semibold tracking-tight text-foreground sm:text-6xl"
+          variants={heroItem}
+          className="font-display text-5xl font-light tracking-[-0.02em] text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.7)] sm:text-6xl"
         >
           Project Alpha
         </motion.h1>
 
-        <motion.p
-          variants={riseItem}
-          className="mt-4 max-w-xs text-balance text-lg leading-relaxed text-muted-foreground"
-        >
-          {TAGLINE}
-        </motion.p>
-
-        <motion.div variants={riseItem} className="mt-8 w-full">
+        <motion.div variants={heroItem} className="mt-8 w-full">
           <AuthPanel className="mx-auto" />
         </motion.div>
 
         <motion.div
-          variants={riseItem}
-          className="mt-6 flex w-full max-w-sm items-center gap-3 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+          variants={heroItem}
+          className="mt-6 flex w-full max-w-sm items-center gap-3 text-xs font-medium uppercase tracking-wide text-white/60"
         >
-          <span className="h-px flex-1 bg-border" />
+          <span className="h-px flex-1 bg-white/20" />
           or
-          <span className="h-px flex-1 bg-border" />
+          <span className="h-px flex-1 bg-white/20" />
         </motion.div>
 
-        <motion.div variants={riseItem} className="mt-6 flex flex-col items-center gap-2">
+        <motion.div variants={heroItem} className="mt-6 flex flex-col items-center">
           <DemoLogin />
-          <p className="max-w-xs text-xs text-muted-foreground">
-            Skip sign-up — explore the full app as a seeded demo student.
-          </p>
         </motion.div>
       </motion.div>
-
-      <Reveal delay={0.1} className="mt-16 text-center text-xs text-muted-foreground/70">
-        Prototype for SYNCS Hack 2026 · Seeded data, real venues.
-      </Reveal>
     </div>
   );
 }
 
-/* Quiet ambient background with reduced-motion support. */
-function Atmosphere() {
+/*
+ * Hero backdrop: the HalftoneFlow WebGL halftone animation runs full-bleed
+ * behind the content, drifting slowly (transform only) so the scene feels
+ * alive without strobing. Over it: a depth vignette, a subtle cinematic
+ * letterbox darkening top and bottom, and a fine film grain. These layers
+ * make the frosted auth card read as floating above a lit scene. The flow is
+ * always dark red/black regardless of theme.
+ */
+function HeroBackdrop() {
   const reduce = useReducedMotion();
+
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
-      <div className="absolute inset-0 bg-surface" />
+    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-black">
       <motion.div
-        className="absolute -left-[10%] -top-[15%] h-[55vh] w-[55vh] rounded-full blur-[120px]"
-        style={{
-          background: "radial-gradient(circle, var(--accent) 0%, transparent 70%)",
-          opacity: 0.16,
-        }}
-        animate={reduce ? undefined : { x: [0, 30, 0], y: [0, 20, 0] }}
-        transition={{ duration: 20, repeat: Infinity, ease: ease.inOut }}
-      />
-      <motion.div
-        className="absolute bottom-[-15%] right-[-10%] h-[50vh] w-[50vh] rounded-full blur-[120px]"
-        style={{
-          background: "radial-gradient(circle, var(--cat-blue) 0%, transparent 70%)",
-          opacity: 0.12,
-        }}
-        animate={reduce ? undefined : { x: [0, -25, 0], y: [0, -15, 0] }}
-        transition={{ duration: 24, repeat: Infinity, ease: ease.inOut }}
-      />
+        className="absolute inset-0"
+        animate={
+          reduce
+            ? undefined
+            : { scale: [1, 1.06, 1], x: ["0%", "-1.5%", "0%"], y: ["0%", "1.2%", "0%"] }
+        }
+        transition={{ duration: 44, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <HalftoneFlow className="absolute inset-0 h-full w-full" />
+      </motion.div>
+
+      {/* Depth vignette: pulls focus to the center where the card sits. */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.55)_62%,rgba(0,0,0,0.85)_100%)]" />
+      {/* Cinematic letterbox darkening at the top and bottom edges. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/60" />
+      {/* Film grain. */}
+      <div className="noise-grain absolute inset-0 opacity-[0.06] mix-blend-overlay" />
     </div>
   );
 }

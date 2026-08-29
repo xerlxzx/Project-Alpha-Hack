@@ -62,7 +62,7 @@ export function Countdown({ targetIso }: { targetIso: string }) {
   if (time.done) {
     return (
       <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-        <CheckCircle2 className="size-4 text-accent" aria-hidden />
+        <CheckCircle2 className="size-4 text-success" aria-hidden />
         Happening now
       </div>
     )
@@ -189,7 +189,7 @@ export function LockMeIn({ meetupId, activityTitle, venueName, scheduledAt }: Lo
     return (
       <div className="flex flex-col items-start gap-3 rounded-2xl bg-card p-5 ring-1 ring-foreground/10">
         <p className="text-sm text-muted-foreground">
-          Confirm you&apos;re coming — this starts your countdown and unlocks the calendar invite.
+          Confirming you&apos;re coming starts your countdown and adds the calendar invite.
         </p>
         <LockInButton onClick={() => setLocked(true)}>
           <Lock className="size-4" aria-hidden />
@@ -201,7 +201,7 @@ export function LockMeIn({ meetupId, activityTitle, venueName, scheduledAt }: Lo
 
   return (
     <div className="flex flex-col gap-4 rounded-2xl bg-card p-5 ring-1 ring-foreground/10">
-      <div className="flex items-center gap-2 text-sm font-medium text-accent">
+      <div className="flex items-center gap-2 text-sm font-medium text-success">
         <CheckCircle2 className="size-4" aria-hidden />
         You&apos;re locked in
       </div>
@@ -250,7 +250,7 @@ function CancelStub() {
           <DialogTitle>Cancelling</DialogTitle>
           <DialogDescription>
             Cancellation is consequence-free before the cutoff, and affects your private
-            reliability score after it. That logic isn&apos;t wired up in this build yet —
+            reliability score after it. That logic isn&apos;t wired up in this build yet, so
             for now this is a placeholder.
           </DialogDescription>
         </DialogHeader>
