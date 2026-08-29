@@ -41,6 +41,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Next.js regenerates these; copies live outside this repo (Hack/AGENTS.md, Hack/CLAUDE.md)
+# Next.js regenerates these; copies live outside this repo
 AGENTS.md
 CLAUDE.md
+
+# local editor / agent prefs
+.cursor/
+.vscode/
+
+# Supabase CLI cache (linked project ref, org id)
+supabase/.temp/
