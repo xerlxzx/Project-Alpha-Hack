@@ -353,21 +353,36 @@ export default function HomePage() {
   }
 
   // Live home feed: the greeting name, how many people are free right now, and
-  // the forming meetups nearby. Fetched once on mount (setState is async here,
-  // inside the promise, so it doesn't cascade).
+  // the forming meetups nearby. Refresh quietly while the page is open and
+  // again when the tab becomes visible, so the "Live" label reflects a feed
+  // that actually stays current rather than a decorative animation.
   const [nearby, setNearby] = React.useState<NearbyResponse | null>(null);
   React.useEffect(() => {
     let alive = true;
-    fetch("/api/nearby")
-      .then((r) => (r.ok ? (r.json() as Promise<NearbyResponse>) : null))
-      .then((data) => {
-        if (alive && data) setNearby(data);
-      })
-      .catch(() => {
-        /* feed is non-critical; a failed load only hides it. */
-      });
+
+    function refreshNearby() {
+      fetch("/api/nearby")
+        .then((r) => (r.ok ? (r.json() as Promise<NearbyResponse>) : null))
+        .then((data) => {
+          if (alive && data) setNearby(data);
+        })
+        .catch(() => {
+          /* feed is non-critical; keep the last successful snapshot. */
+        });
+    }
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === "visible") refreshNearby();
+    }
+
+    refreshNearby();
+    const refreshInterval = window.setInterval(refreshNearby, 30_000);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
     return () => {
       alive = false;
+      window.clearInterval(refreshInterval);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, []);
 
@@ -510,7 +525,20 @@ export default function HomePage() {
                 transition={{ duration: 0.25 }}
                 className="block"
               >
-                {heroLine}
+                {presenceLine && !activity ? (
+                  <span className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-success/25 bg-success/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-success">
+                      <span
+                        aria-hidden
+                        className="h-1.5 w-1.5 rounded-full bg-success"
+                      />
+                      Live
+                    </span>
+                    <span aria-live="polite">{heroLine}</span>
+                  </span>
+                ) : (
+                  heroLine
+                )}
               </motion.span>
             </AnimatePresence>
           </motion.p>
@@ -1184,7 +1212,7 @@ function ConciergeBox() {
             type="text"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="Tired, 90 min, want to meet 2 people nearby…"
+            placeholder="I want to study with baddies near me... "
             aria-label="Tell the concierge what you're in the mood for"
             className="min-w-0 flex-1 bg-transparent px-2 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
           />
@@ -1345,49 +1373,56 @@ function EventCard({ event }: { event: NearbyEvent }) {
   const full = event.spotsLeft === 0;
 
   return (
-    <motion.div
+    <motion.article
       layout
       initial={reduce ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={spring.gentle}
-      className="rounded-2xl border border-border bg-card/60 p-4 text-left backdrop-blur-sm"
+      className="rounded-2xl border border-border bg-card/60 p-3.5 text-left backdrop-blur-sm sm:p-4"
     >
-      <h3 className="font-heading text-base font-medium leading-snug text-foreground">
-        {event.title}
-      </h3>
-      {(event.venueName || event.hostFirstName) && (
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          {[event.venueName, event.hostFirstName && `${event.hostFirstName} hosting`]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
-      )}
-
-      <div className="mt-3 flex items-center gap-2">
-        <AvatarStack count={event.memberCount} />
-        <span className="text-xs font-medium text-foreground/80">
-          {event.whenLabel}
-        </span>
+      <div className="min-w-0">
+        <h3 className="font-heading text-base font-medium leading-snug text-foreground">
+          {event.title}
+        </h3>
+        {(event.venueName || event.hostFirstName) && (
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {[
+              event.venueName,
+              event.hostFirstName && `${event.hostFirstName} hosting`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        )}
       </div>
 
-      <div className="mt-3 flex items-center justify-between">
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5" />
-          {event.distanceLabel}
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+          <span className="flex items-center gap-2">
+            <AvatarStack count={event.memberCount} />
+            <span className="whitespace-nowrap text-xs font-medium text-foreground/80">
+              {event.whenLabel}
+            </span>
+          </span>
+          <span className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5" />
+            {event.distanceLabel}
+          </span>
           {!full && (
-            <span className="ml-1 text-muted-foreground/70">
-              · {event.spotsLeft} {event.spotsLeft === 1 ? "spot" : "spots"} left
+            <span className="whitespace-nowrap text-xs text-muted-foreground/70">
+              {event.spotsLeft} {event.spotsLeft === 1 ? "spot" : "spots"} left
             </span>
           )}
-        </span>
+        </div>
         <motion.button
           type="button"
+          aria-label={`${requested ? "Requested to join" : full ? "Full" : "Join"} ${event.title}`}
           onClick={() => setRequested(true)}
           disabled={requested || full}
           whileTap={reduce || requested || full ? undefined : { scale: 0.94 }}
           transition={spring.snappy}
           className={cn(
-            "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
+            "min-h-12 min-w-20 shrink-0 rounded-full px-5 text-sm font-semibold transition-colors",
             requested
               ? "bg-cat-sage/20 text-cat-foreground"
               : full
@@ -1398,7 +1433,7 @@ function EventCard({ event }: { event: NearbyEvent }) {
           {requested ? "Requested" : full ? "Full" : "Join"}
         </motion.button>
       </div>
-    </motion.div>
+    </motion.article>
   );
 }
 
