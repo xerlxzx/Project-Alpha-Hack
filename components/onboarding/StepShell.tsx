@@ -30,17 +30,17 @@ export function StepShell({
   footerExtra,
 }: StepShellProps) {
   return (
-    <div className="flex flex-col gap-6 rounded-2xl bg-card p-6 text-card-foreground ring-1 ring-foreground/10">
-      <div className="flex flex-col gap-1">
-        <h1 className="font-heading text-xl font-semibold">{title}</h1>
+    <div className="flex flex-col gap-7 rounded-2xl bg-black p-7 text-card-foreground ring-1 ring-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),inset_0_-1px_0_rgba(255,255,255,0.02),0_2px_6px_rgba(0,0,0,0.55),0_14px_32px_-24px_rgba(255,255,255,0.08)]">
+      <div className="flex flex-col gap-1.5">
+        <h1 className="font-heading text-2xl font-semibold">{title}</h1>
         {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <p className="text-base text-muted-foreground">{description}</p>
         )}
       </div>
 
-      <div className="flex flex-col gap-4">{children}</div>
+      <div className="flex flex-col gap-5">{children}</div>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4">
         <PrimaryCTA
           type="button"
           onClick={onNext}
@@ -51,7 +51,7 @@ export function StepShell({
         </PrimaryCTA>
         <div className="flex items-center justify-between">
           {onBack ? (
-            <Button type="button" variant="ghost" size="sm" onClick={onBack}>
+            <Button type="button" variant="ghost" onClick={onBack} className="h-11 rounded-full px-5 text-base">
               Back
             </Button>
           ) : (

@@ -313,7 +313,7 @@ function MatchFlow() {
         return
       }
       if (!res.ok) {
-        setActionError("Couldn't reroll just now — keeping the current pick.")
+        setActionError("Couldn't reroll just now, so the current pick stands.")
         return
       }
       const va = (await res.json()) as VenueAgentResponse
@@ -337,7 +337,7 @@ function MatchFlow() {
       )
       setRerollUsed(true)
     } catch {
-      setActionError("Couldn't reroll just now — keeping the current pick.")
+      setActionError("Couldn't reroll just now, so the current pick stands.")
     } finally {
       setBusy(false)
     }
@@ -351,7 +351,7 @@ function MatchFlow() {
     try {
       const res = await fetch(`/api/meetups/${group.meetupId}/accept`, { method: "POST" })
       if (!res.ok) {
-        setActionError("Couldn't record your acceptance — try again.")
+        setActionError("We couldn't record your acceptance, so please try again.")
         setPhase("proposal")
         return
       }
@@ -379,7 +379,7 @@ function MatchFlow() {
         setPhase("waiting")
       }
     } catch {
-      setActionError("Couldn't record your acceptance — try again.")
+      setActionError("We couldn't record your acceptance, so please try again.")
       setPhase("proposal")
     } finally {
       setBusy(false)
@@ -470,8 +470,8 @@ function MatchFlow() {
               <p className="text-xs font-medium text-destructive">{actionError}</p>
             )}
 
-            <div className="flex flex-wrap items-center gap-3">
-              <PrimaryCTA onClick={onAccept} disabled={busy}>
+            <div className="grid grid-cols-2 gap-3">
+              <PrimaryCTA onClick={onAccept} disabled={busy} fullWidth>
                 <Check className="size-4" aria-hidden />
                 Accept plan
               </PrimaryCTA>
@@ -480,6 +480,7 @@ function MatchFlow() {
                 onClick={onReroll}
                 disabled={busy || rerollUsed}
                 aria-label={rerollUsed ? "Reroll already used" : "Reroll once for a different venue"}
+                className="h-14 w-full rounded-full px-8 text-base font-semibold"
               >
                 <RefreshCw className="size-4" aria-hidden />
                 {rerollUsed ? "Reroll used" : "Reroll once"}
@@ -487,7 +488,7 @@ function MatchFlow() {
             </div>
             {rerollUsed && (
               <p className="text-xs text-muted-foreground">
-                You&apos;ve used your one reroll — the next pick stands.
+                You&apos;ve used your one reroll, so the next pick stands.
               </p>
             )}
           </motion.div>
@@ -556,10 +557,10 @@ function MatchFlow() {
             </p>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Button variant="outline" render={<Link href="/home" />}>
+              <Button variant="outline" nativeButton={false} render={<Link href="/home" />}>
                 Keep waiting
               </Button>
-              <Button variant="outline" render={<Link href="/meetups" />}>
+              <Button variant="outline" nativeButton={false} render={<Link href="/meetups" />}>
                 Browse future meetups
               </Button>
             </div>

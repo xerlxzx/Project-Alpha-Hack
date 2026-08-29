@@ -82,12 +82,13 @@ function availabilityOverlapRatio(a: AvailabilityWindow[], b: AvailabilityWindow
 export function buildMatch(
   activeUser: ActiveUser,
   pool: PoolMember[],
-  ctx: { blockedPairs: Array<[string, string]>; now: Date }
+  ctx: { blockedPairs: Array<[string, string]>; now: Date; relaxAvailability?: boolean }
 ): MatchResult {
   const gateCtx: GateContext = {
     activeUser,
     blockedPairs: ctx.blockedPairs,
     now: ctx.now,
+    relaxAvailability: ctx.relaxAvailability,
   }
 
   const scored = pool

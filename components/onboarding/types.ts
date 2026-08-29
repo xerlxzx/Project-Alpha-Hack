@@ -2,6 +2,8 @@
 // domain types). This UI-only shape is translated into the DB
 // shape by app/onboarding/actions.ts at save time.
 
+import { IDENTITY_TRANSFORM, type PhotoTransform } from "@/components/onboarding/resizeImage";
+
 export const AGE_RANGES = ["18-20", "21-23", "24-26", "27+"] as const;
 export type AgeRange = (typeof AGE_RANGES)[number];
 
@@ -41,6 +43,8 @@ export interface OnboardingState {
   photoFile: File | null;
   photoPreviewUrl: string | null;
   photoUrl: string | null;
+  /** Pan + zoom the user applied when framing the photo in the crop editor. */
+  photoTransform: PhotoTransform;
   university: string;
   location: LocationValue;
   travelKm: number;
@@ -64,6 +68,7 @@ export const initialOnboardingState: OnboardingState = {
   photoFile: null,
   photoPreviewUrl: null,
   photoUrl: null,
+  photoTransform: IDENTITY_TRANSFORM,
   university: "",
   location: { lat: null, lng: null, label: null },
   travelKm: 5,

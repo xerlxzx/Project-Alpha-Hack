@@ -55,7 +55,7 @@ export function GroupPreview({
           </span>
           <span className="text-sm text-muted-foreground">· {genderMix}</span>
         </div>
-        <Badge variant="outline" className="shrink-0">
+        <Badge variant="outline" className="shrink-0 border-success/40 bg-success/10 text-success">
           <ShieldCheck className="size-3" aria-hidden />
           {verifiedCount}/{size} verified
         </Badge>

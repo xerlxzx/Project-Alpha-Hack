@@ -4,39 +4,39 @@ import * as React from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
-import { spring, ease } from "./tokens";
+import { spring } from "./tokens";
 
 export interface PrimaryCTAProps
   extends Omit<React.ComponentPropsWithoutRef<typeof motion.button>, "ref"> {
   children: React.ReactNode;
-  /** Show the slow idle glow breathing behind the button. */
+  /**
+   * Deprecated. Kept for call-site compatibility; no longer renders a glow.
+   * The idle breathing glow was removed; primary buttons stay calm at rest.
+   */
   glow?: boolean;
+  /**
+   * Stretch the button to fill its container instead of hugging its content.
+   * The wrapper is `inline-grid` by default (a content-width pill); this makes
+   * it a full-width block so `className="w-full"` spans the row.
+   */
+  fullWidth?: boolean;
 }
 
 /**
  * Primary action button for "Lock me in" and "Accept". Presses in with spring
- * physics, a light sweep crosses on hover, and an optional glow breathes
- * underneath. The glow is a separate blurred layer animating opacity only,
- * so it never repaints the button.
+ * physics and lifts slightly on hover. No idle pulsing or shimmer; motion
+ * happens only in response to the user's touch.
  */
 export const PrimaryCTA = React.forwardRef<HTMLButtonElement, PrimaryCTAProps>(
-  ({ children, glow = true, className, ...props }, ref) => {
+  ({ children, glow: _glow, fullWidth, className, ...props }, ref) => {
     const reduce = useReducedMotion();
     return (
-      <div className="relative inline-grid">
-        {glow && !reduce && (
-          <motion.span
-            aria-hidden
-            className="absolute -inset-1 -z-10 rounded-full bg-[var(--accent)] blur-xl"
-            animate={{ opacity: [0.25, 0.5, 0.25], scale: [0.96, 1.02, 0.96] }}
-            transition={{ duration: 3.2, repeat: Infinity, ease: ease.inOut }}
-          />
-        )}
+      <div className={cn("relative", fullWidth ? "grid w-full" : "inline-grid")}>
         <motion.button
           ref={ref}
           className={cn(
-            "group relative isolate overflow-hidden rounded-full",
-            "bg-[var(--accent)] px-7 py-3.5 text-base font-semibold text-[var(--accent-foreground)]",
+            "group relative isolate flex h-14 items-center justify-center overflow-hidden rounded-full",
+            "bg-[var(--accent)] px-8 text-base font-semibold text-[var(--accent-foreground)]",
             "shadow-lg shadow-[var(--accent)]/25 outline-none",
             "focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background",
             className,
@@ -46,13 +46,6 @@ export const PrimaryCTA = React.forwardRef<HTMLButtonElement, PrimaryCTAProps>(
           transition={spring.snappy}
           {...props}
         >
-          {/* Hover light sweep. Transform only. */}
-          {!reduce && (
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-full"
-            />
-          )}
           <span className="relative z-10 flex items-center justify-center gap-2">
             {children}
           </span>

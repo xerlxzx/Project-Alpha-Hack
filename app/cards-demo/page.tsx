@@ -18,7 +18,7 @@ export default function CardsDemoPage() {
     <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
       <section className="flex flex-col gap-3">
         <h2 className="font-heading text-sm font-medium text-muted-foreground">
-          ProposalCard — within budget/distance
+          ProposalCard · within budget/distance
         </h2>
         <ProposalCard
           activityTitle="Coffee & board games"
@@ -36,7 +36,7 @@ export default function CardsDemoPage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="font-heading text-sm font-medium text-muted-foreground">
-          ProposalCard — over budget & over distance
+          ProposalCard · over budget & over distance
         </h2>
         <ProposalCard
           activityTitle="Rock climbing session"
@@ -55,7 +55,7 @@ export default function CardsDemoPage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="font-heading text-sm font-medium text-muted-foreground">
-          GroupPreview — anonymous, pre-acceptance
+          GroupPreview · anonymous, pre-acceptance
         </h2>
         <GroupPreview
           size={4}

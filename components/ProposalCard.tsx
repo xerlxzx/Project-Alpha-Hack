@@ -107,7 +107,7 @@ export function ProposalCard({
           {distanceLabel && (
             <Badge
               variant="outline"
-              className={overDistancePreference ? "bg-muted text-foreground" : undefined}
+              className={overDistancePreference ? "border-warning/40 bg-warning/10 text-warning" : undefined}
             >
               <MapPin className="size-3" aria-hidden />
               {distanceLabel}
@@ -118,7 +118,7 @@ export function ProposalCard({
           )}
           <Badge
             variant="outline"
-            className={overBudgetPreference ? "bg-muted text-foreground" : undefined}
+            className={overBudgetPreference ? "border-warning/40 bg-warning/10 text-warning" : undefined}
           >
             <Wallet className="size-3" aria-hidden />
             {costLabel}
@@ -131,15 +131,15 @@ export function ProposalCard({
         {(overBudgetPreference || overDistancePreference) && (
           <div className="flex flex-col gap-1">
             {overBudgetPreference && (
-              <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-warning">
                 <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
-                Slightly over the group&apos;s usual budget
+                A bit over the group&apos;s usual budget
               </p>
             )}
             {overDistancePreference && (
-              <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-warning">
                 <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
-                Slightly beyond the group&apos;s usual distance
+                A bit beyond the group&apos;s usual distance
               </p>
             )}
           </div>
@@ -156,6 +156,7 @@ export function ProposalCard({
               <Button
                 variant="outline"
                 size="sm"
+                nativeButton={false}
                 render={
                   <a href={mapsUrl} target="_blank" rel="noreferrer" />
                 }
@@ -168,6 +169,7 @@ export function ProposalCard({
             {bookingUrl && bookingUrl !== mapsUrl && (
               <Button
                 size="sm"
+                nativeButton={false}
                 render={
                   <a href={bookingUrl} target="_blank" rel="noreferrer" />
                 }

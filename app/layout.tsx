@@ -1,18 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
-import { ThemeProvider, ThemeToggle } from "@/components/theme-provider";
+import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
 import { BottomTabBar } from "@/components/BottomTabBar";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
-const fontDisplay = Fraunces({
-  variable: "--font-display",
-  subsets: ["latin"],
-  axes: ["opsz", "SOFT"],
-});
-
-const fontSans = Plus_Jakarta_Sans({
+// Single premium sans (Geist) drives both body and display tokens, an
+// Apple/system-UI direction. Geist is variable, so `font-semibold`/`font-bold`
+// headings across the app keep real weights (no synthetic faux-bold).
+const fontSans = Geist({
   variable: "--font-sans",
   subsets: ["latin"],
 });
@@ -23,14 +20,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Project Alpha: stop scrolling, start doing",
+  title: "Project Alpha — designed to be deleted",
   description:
     "Project Alpha matches university students with compatible people nearby, then an AI agent finds a real place to meet. You just say yes.",
   manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#EA7317",
+  themeColor: "#171512", // deep warm-neutral; matches --background
 };
 
 // Seeded demo user (supabase/seed.sql, see task-1.2-report.md). Used only as
@@ -95,7 +92,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${fontDisplay.variable} ${fontSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`dark ${fontSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body
         className={cn(
@@ -111,7 +108,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               activeMeetupStatus={nav.activeMeetupStatus}
             />
           )}
-          <ThemeToggle />
         </ThemeProvider>
       </body>
     </html>

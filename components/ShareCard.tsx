@@ -42,7 +42,7 @@ export function ShareCard({ completed, goal, streak, className }: ShareCardProps
       <p className="font-display text-xl text-foreground">Project Alpha</p>
       <p className="text-base text-foreground">{recapText}</p>
       <p className="text-xs text-muted-foreground">
-        Recap only - no names, photos, or locations shown.
+        Recap only, with no names, photos, or locations shown.
       </p>
       <button
         type="button"

@@ -110,7 +110,16 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: err instanceof Error ? err.message : "Failed to load match inputs" }, { status: 404 })
   }
 
-  const result = buildMatch(activeUser, pool, { blockedPairs, now })
+  let result = buildMatch(activeUser, pool, { blockedPairs, now })
+
+  // Demo fallback: the seed timestamps availability windows at seed time, so
+  // they expire and the availability gate wipes the pool in a stale-seed
+  // environment (same problem /api/nearby works around). For the sessionless
+  // demo user, retry ignoring availability so a group always forms. A real
+  // session, or a live deployment with fresh windows, never hits this branch.
+  if (result.status === "insufficient" && currentUser.isDemo) {
+    result = buildMatch(activeUser, pool, { blockedPairs, now, relaxAvailability: true })
+  }
 
   if (result.status === "insufficient") {
     const [nearestFuture, suggestion] = await Promise.all([

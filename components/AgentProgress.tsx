@@ -58,6 +58,120 @@ function projectToPercent(
   }
 }
 
+export interface ScatterPoint {
+  x: number
+  y: number
+  delay: number
+}
+
+/**
+ * A deterministic scatter of decorative "candidate" points around the map
+ * centre. Seeded so positions stay stable across re-renders; these are
+ * cosmetic (the abstract search animation), distinct from the real venue
+ * coordinates projected by projectToPercent.
+ */
+function candidateScatter(count: number): ScatterPoint[] {
+  let seed = 0x811c9dc5
+  const rand = () => {
+    seed |= 0
+    seed = (seed + 0x6d2b79f5) | 0
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+  return Array.from({ length: count }, () => {
+    const angle = rand() * Math.PI * 2
+    const radius = 10 + rand() * 34 // % of the frame out from the centre
+    return {
+      x: Math.min(94, Math.max(6, 50 + Math.cos(angle) * radius)),
+      y: Math.min(94, Math.max(6, 50 + Math.sin(angle) * radius * 0.8)),
+      delay: rand() * 0.8,
+    }
+  })
+}
+
+/** Concentric range rings around the group's area. */
+function RangeRings({ reduce }: { reduce: boolean }) {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+    >
+      {[0, 1, 2].map((i) => {
+        const size = 96 + i * 92
+        return (
+          <motion.span
+            key={i}
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-accent/20"
+            style={{ width: size, height: size }}
+            animate={reduce ? undefined : { opacity: [0.15, 0.4, 0.15], scale: [0.98, 1.03, 0.98] }}
+            transition={
+              reduce ? undefined : { duration: 3.2, repeat: Infinity, delay: i * 0.5, ease: "easeInOut" }
+            }
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+/** Slow radar sweep emanating from the centre while the agent searches. */
+function RadarSweep() {
+  return (
+    <motion.div
+      aria-hidden
+      className="pointer-events-none absolute left-1/2 top-1/2 size-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+      style={{
+        background:
+          "conic-gradient(from 0deg, transparent 0deg, color-mix(in oklab, var(--accent) 26%, transparent) 34deg, transparent 62deg)",
+        WebkitMaskImage: "radial-gradient(circle, #000 28%, transparent 70%)",
+        maskImage: "radial-gradient(circle, #000 28%, transparent 70%)",
+      }}
+      initial={{ rotate: 0, opacity: 0 }}
+      animate={{ rotate: 360, opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{
+        rotate: { duration: 4.5, repeat: Infinity, ease: "linear" },
+        opacity: { duration: 0.6 },
+      }}
+    />
+  )
+}
+
+/** Faint candidate points pinging around the centre during the search. */
+function CandidateField({ points, reduce }: { points: ScatterPoint[]; reduce: boolean }) {
+  return (
+    <motion.div
+      aria-hidden
+      className="pointer-events-none absolute inset-0"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.5 } }}
+    >
+      {points.map((p, i) => (
+        <motion.span
+          key={i}
+          className="absolute size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground/45"
+          style={{ left: `${p.x}%`, top: `${p.y}%` }}
+          initial={reduce ? { opacity: 0.45 } : { opacity: 0, scale: 0 }}
+          animate={reduce ? { opacity: 0.45 } : { opacity: [0, 0.6, 0.3], scale: [0, 1.15, 1] }}
+          transition={
+            reduce
+              ? { duration: 0.2 }
+              : {
+                  duration: 1.6,
+                  delay: p.delay,
+                  repeat: Infinity,
+                  repeatType: "reverse",
+                  repeatDelay: 0.6,
+                }
+          }
+        />
+      ))}
+    </motion.div>
+  )
+}
+
 function StepIcon({ status, reduce }: { status: AgentStep["status"]; reduce: boolean }) {
   if (status === "done") {
     return (
@@ -95,7 +209,7 @@ function MapPinMarker({
 
   return (
     <motion.div
-      className="absolute -translate-x-1/2 -translate-y-full"
+      className="absolute z-20 -translate-x-1/2 -translate-y-full"
       style={{ left: `${x}%`, top: `${y}%` }}
       initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.3, y: -14 }}
       animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
@@ -141,6 +255,12 @@ export function AgentProgress({
 
   const gridLines = React.useMemo(() => Array.from({ length: 5 }, (_, i) => (i + 1) * (100 / 6)), [])
 
+  // The winning venue pin arrives when the agent finishes; until then the
+  // panel is "searching" and shows the abstract sweep + candidate field.
+  const resolved = pins.some((p) => p.selected)
+  const searching = !resolved
+  const scatter = React.useMemo(() => candidateScatter(20), [])
+
   return (
     <div className={cn("flex flex-col gap-4 md:flex-row", className)}>
       {/* Stylized map backdrop */}
@@ -182,10 +302,22 @@ export function AgentProgress({
           ))}
         </svg>
 
+        {/* Concentric range rings around the group's area. */}
+        <RangeRings reduce={reduce} />
+
+        {/* Abstract search animation: radar sweep + candidate points, both
+            present while the agent searches and gone once a venue is chosen. */}
+        <AnimatePresence>
+          {searching && !reduce && <RadarSweep key="sweep" />}
+        </AnimatePresence>
+        <AnimatePresence>
+          {searching && <CandidateField key="candidates" points={scatter} reduce={reduce} />}
+        </AnimatePresence>
+
         {/* Center marker for the group's area. */}
         <span
           aria-hidden
-          className="absolute left-1/2 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground/40"
+          className="absolute left-1/2 top-1/2 z-10 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground/60"
         />
 
         <AnimatePresence>

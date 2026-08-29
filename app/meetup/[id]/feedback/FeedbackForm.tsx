@@ -257,7 +257,7 @@ export function FeedbackForm({
 
         <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
           <Sparkles className="size-3.5" aria-hidden />
-          Private signals only — never public ratings.
+          Private signals only, never public ratings.
         </p>
       </form>
 

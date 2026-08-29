@@ -117,7 +117,7 @@ export function ChatThread({
   }
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10">
+    <div className="flex flex-col overflow-hidden rounded-2xl bg-card ring-1 ring-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),inset_0_-1px_0_rgba(255,255,255,0.02),0_2px_6px_rgba(0,0,0,0.55),0_14px_32px_-24px_rgba(255,255,255,0.08)]">
       <div ref={scrollRef} className="flex max-h-[420px] flex-col gap-2.5 overflow-y-auto p-4">
         {messages.map((message) => (
           <Bubble
@@ -182,7 +182,7 @@ function Bubble({
         <div className="whitespace-pre-wrap break-words">{message.body}</div>
         {message.failed && (
           <div className="mt-1 text-[0.7rem] font-medium text-destructive">
-            Failed to send — try again
+            Failed to send, try again
           </div>
         )}
         {message.pending && !message.failed && (

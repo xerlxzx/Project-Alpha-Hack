@@ -6,6 +6,10 @@ export interface GateContext {
   activeUser: Profile & Preferences & RuntimeFlags
   blockedPairs: Array<[string, string]>
   now: Date
+  // Demo fallback: skip the availability-overlap gate so stale seed windows
+  // (timestamped at seed time, see supabase/seed.sql) don't wipe the pool.
+  // Never set for real sessions. Mirrors the /api/nearby stale-seed fallback.
+  relaxAvailability?: boolean
 }
 
 type Candidate = Profile &
@@ -48,7 +52,7 @@ export function passesGates(
   if (!candidate.ageOk) {
     reasons.push("Candidate does not meet the minimum age requirement")
   }
-  if (!overlaps(candidate.availability, activeUser.availability)) {
+  if (!ctx.relaxAvailability && !overlaps(candidate.availability, activeUser.availability)) {
     reasons.push("No availability overlap with active user")
   }
   if (isBlocked(ctx.blockedPairs, activeUser.userId, candidate.userId)) {

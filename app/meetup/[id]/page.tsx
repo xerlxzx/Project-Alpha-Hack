@@ -1,13 +1,28 @@
+import type { ReactNode } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { CalendarClock, CheckCircle2, MapPin } from "lucide-react"
 
 import { getAdminSupabase, getServerSupabase } from "@/lib/supabase/server"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { BackButton } from "@/components/BackButton"
 import { ChatThread, MemberReveal, type ChatMember, type ChatMessage } from "@/components/ChatThread"
 import { LockMeIn } from "@/components/Countdown"
 import { DemoTimeSkip } from "@/components/DemoTimeSkip"
-import { SafetyActions } from "@/components/SafetyActions"
+import { MeetupSafety } from "@/components/SafetyActions"
+
+// The onboarding panel treatment (see components/onboarding/StepShell.tsx):
+// a black card with a hairline ring and a layered inset-highlight shadow.
+// Reused across this page's surfaces so the meetup view reads as the same
+// design language as the onboarding flow.
+const PANEL =
+  "rounded-2xl bg-card ring-1 ring-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),inset_0_-1px_0_rgba(255,255,255,0.02),0_2px_6px_rgba(0,0,0,0.55),0_14px_32px_-24px_rgba(255,255,255,0.08)]"
+
+// Wraps every return path so the whole route shares the onboarding theme
+// (pure-black ground, amber accent) — not just the confirmed-meetup view.
+function Shell({ children }: { children: ReactNode }) {
+  return <div className="onboarding-theme min-h-dvh bg-black">{children}</div>
+}
 
 // Same convention as app/layout.tsx, app/profile/page.tsx, and
 // app/onboarding/actions.ts: fall back to the seeded active demo user when
@@ -143,25 +158,35 @@ export default async function MeetupPage({
     : "Time TBC"
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-8 px-4 py-10 sm:px-6">
+    <Shell>
+      <main className="mx-auto flex max-w-2xl flex-col gap-8 px-4 pt-10 pb-24 sm:px-6">
       <header className="flex flex-col gap-1">
-        <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
-          ← Back
-        </Link>
-        <h1 className="font-display text-2xl font-semibold text-foreground">
+        <div className="flex items-center justify-between gap-3">
+          <BackButton />
+          {otherMembers.length > 0 && (
+            <MeetupSafety
+              members={otherMembers.map((member) => ({
+                userId: member.userId,
+                firstName: member.firstName,
+              }))}
+              meetupId={id}
+            />
+          )}
+        </div>
+        <h1 className="mt-2 font-heading text-2xl font-semibold text-foreground">
           {recommendation?.activity_title ?? "Your confirmed meetup"}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Everyone said yes — here&apos;s who&apos;s coming.
+          Everyone said yes, so here&apos;s your group.
         </p>
       </header>
 
       <section className="flex flex-col gap-3">
-        <h2 className="font-display text-lg font-semibold text-foreground">The group</h2>
+        <h2 className="font-heading text-lg font-semibold text-foreground">The group</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {memberList.map((member, i) => (
             <MemberReveal key={member.userId} delay={i * 0.08}>
-              <div className="flex flex-col items-center gap-2 rounded-2xl bg-card p-4 text-center ring-1 ring-foreground/10">
+              <div className={`flex flex-col items-center gap-2 p-4 text-center ${PANEL}`}>
                 <Avatar size="lg">
                   <AvatarImage src={member.photoUrl ?? undefined} alt={member.firstName} />
                   <AvatarFallback>{member.firstName.slice(0, 1)}</AvatarFallback>
@@ -186,30 +211,8 @@ export default async function MeetupPage({
         reason={recommendation?.reason ?? null}
       />
 
-      {otherMembers.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="font-display text-lg font-semibold text-foreground">Safety</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {otherMembers.map((member, index) => (
-              <div
-                key={member.userId}
-                className="rounded-2xl bg-card p-4 ring-1 ring-foreground/10"
-              >
-                <p className="mb-3 text-sm font-medium text-foreground">{member.firstName}</p>
-                <SafetyActions
-                  targetUserId={member.userId}
-                  targetLabel={member.firstName}
-                  meetupId={id}
-                  showTrustedContact={index === 0}
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       <section className="flex flex-col gap-3">
-        <h2 className="font-display text-lg font-semibold text-foreground">Group chat</h2>
+        <h2 className="font-heading text-lg font-semibold text-foreground">Group chat</h2>
         <ChatThread
           meetupId={id}
           currentUserId={userId}
@@ -225,7 +228,8 @@ export default async function MeetupPage({
         scheduledAt={meetup.scheduled_at}
       />
       <DemoTimeSkip meetupId={id} />
-    </main>
+      </main>
+    </Shell>
   )
 }
 
@@ -239,7 +243,7 @@ function PinnedActivityCard({
   reason: string | null
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 ring-1 ring-foreground/10">
+    <div className={`flex flex-col gap-3 p-4 ${PANEL}`}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span className="flex items-center gap-1.5 font-medium text-foreground">
           <CalendarClock className="size-4 text-muted-foreground" aria-hidden />
@@ -259,19 +263,22 @@ function PinnedActivityCard({
 
 function EmptyState({ title, body }: { title: string; body: string }) {
   return (
-    <main className="mx-auto flex max-w-md flex-col items-center gap-3 px-4 py-24 text-center">
-      <h1 className="font-display text-xl font-semibold text-foreground">{title}</h1>
-      <p className="text-sm text-muted-foreground">{body}</p>
-      <Link href="/" className="text-sm font-medium text-accent hover:underline">
-        ← Back home
-      </Link>
-    </main>
+    <Shell>
+      <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-3 px-4 py-24 text-center">
+        <h1 className="font-heading text-xl font-semibold text-foreground">{title}</h1>
+        <p className="text-sm text-muted-foreground">{body}</p>
+        <Link href="/home" className="text-sm font-medium text-accent hover:underline">
+          ← Back home
+        </Link>
+      </main>
+    </Shell>
   )
 }
 
 function CompletedMeetup({ meetupId }: { meetupId: string }) {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-5 px-5 text-center">
+    <Shell>
+      <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-5 px-5 text-center">
       <div className="grid size-14 place-items-center rounded-full bg-accent/10 text-accent">
         <CheckCircle2 className="size-7" aria-hidden />
       </div>
@@ -279,7 +286,7 @@ function CompletedMeetup({ meetupId }: { meetupId: string }) {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
           Meetup complete
         </p>
-        <h1 className="font-display text-3xl font-semibold text-foreground">
+        <h1 className="font-heading text-3xl font-semibold text-foreground">
           How did it feel?
         </h1>
         <p className="text-sm leading-6 text-muted-foreground">
@@ -292,6 +299,7 @@ function CompletedMeetup({ meetupId }: { meetupId: string }) {
       >
         Give feedback
       </Link>
-    </main>
+      </main>
+    </Shell>
   )
 }

@@ -27,6 +27,53 @@ async function getWriteClient(user: CurrentUser) {
   return user.isDemo ? getAdminSupabase() : await getServerSupabase();
 }
 
+function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return fallback;
+}
+
+/**
+ * Ensure the authenticated identity has the public.users parent row required
+ * by profiles/preferences. This repairs accounts created by Supabase's admin
+ * magic-link flow on projects where the demo seed has not been rerun.
+ */
+async function ensurePublicUserRow(user: CurrentUser): Promise<void> {
+  const admin = getAdminSupabase();
+  const { data: existing, error: lookupError } = await admin
+    .from("users")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (lookupError) throw lookupError;
+  if (existing) return;
+
+  const { data, error: authError } = await admin.auth.admin.getUserById(user.id);
+  if (authError) throw authError;
+
+  const email = data.user?.email;
+  if (!email) throw new Error("The signed-in account has no email address.");
+
+  const { error: insertError } = await admin.from("users").upsert(
+    {
+      id: user.id,
+      university_email: email,
+      is_verified: Boolean(data.user.email_confirmed_at),
+      is_over_18: true,
+    },
+    { onConflict: "id" }
+  );
+  if (insertError) throw insertError;
+}
+
 function dedupeTags(tags: string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -87,8 +134,56 @@ export async function extractTags(
 
   return {
     tags: [],
-    error: "AI tag extraction failed — add tags yourself below.",
+    error: "AI tag extraction failed, so add tags yourself below.",
   };
+}
+
+function buildSuggestPrompt(current: string[]): string {
+  return [
+    "A student is picking interests for a social meetup app. Given the",
+    "interests they've already added, suggest up to 6 ADDITIONAL related",
+    "interest/activity tags they might also enjoy. Each tag 1-3 words, no",
+    "hashtags, no duplicates of what they already have.",
+    "Return ONLY JSON matching the given schema — no prose.",
+    `Already added: ${JSON.stringify(current)}`,
+  ].join("\n");
+}
+
+/**
+ * Suggests related interest tags from the ones a user has already added.
+ * Best-effort: any failure returns an empty list so the UI stays usable.
+ */
+export async function suggestInterests(
+  current: string[]
+): Promise<{ tags: string[]; error?: string }> {
+  const cleaned = dedupeTags(current).slice(0, 20);
+  if (cleaned.length === 0) return { tags: [] };
+
+  const ai = new GoogleGenAI({ apiKey: getEnv("GEMINI_API_KEY") });
+  const lower = new Set(cleaned.map((t) => t.toLowerCase()));
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: buildSuggestPrompt(cleaned),
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: z.toJSONSchema(TagsSchema),
+        },
+      });
+      const text = response.text;
+      if (!text) throw new Error("Gemini returned no structured output");
+      const parsed = TagsSchema.parse(JSON.parse(text));
+      // Drop anything the user already has.
+      const fresh = dedupeTags(parsed.tags).filter((t) => !lower.has(t.toLowerCase()));
+      return { tags: fresh };
+    } catch {
+      // First failure: retry. Second: fall through.
+    }
+  }
+
+  return { tags: [], error: "Couldn't fetch suggestions, add your own instead." };
 }
 
 async function ensurePhotoBucketExists(): Promise<void> {
@@ -155,7 +250,7 @@ export interface SaveOnboardingPayload {
   university: string;
   areaLat: number | null;
   areaLng: number | null;
-  travelKm: number;
+  travelKm: number | null;
   budgetAud: number;
   hobbies: string[];
   interests: string[];
@@ -181,6 +276,7 @@ export async function saveOnboarding(
   }
 
   try {
+    await ensurePublicUserRow(user);
     const client = await getWriteClient(user);
 
     // user.id is the only source of identity here, resolved server-side by
@@ -235,7 +331,7 @@ export async function saveOnboarding(
   } catch (err) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Could not save onboarding.",
+      error: errorMessage(err, "Could not save onboarding."),
     };
   }
 }

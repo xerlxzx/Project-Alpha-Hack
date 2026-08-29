@@ -143,7 +143,7 @@ export async function ConnectionMap({ friends, selfLabel = "You", className }: C
       {data.length === 0 ? (
         <p className="mt-6 rounded-xl bg-muted/60 px-4 py-6 text-center text-sm text-muted-foreground">
           No connections yet. When you and someone from a meetup both choose
-          &ldquo;meet again&rdquo;, they&rsquo;ll show up here — linked by the
+          &ldquo;meet again&rdquo;, they&rsquo;ll show up here, linked by the
           activity you shared.
         </p>
       ) : (
@@ -245,7 +245,7 @@ export async function ConnectionMap({ friends, selfLabel = "You", className }: C
                 className="rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm"
               >
                 <span className="font-medium">{friend.firstName}</span>
-                <span className="text-muted-foreground"> — met through </span>
+                <span className="text-muted-foreground"> · met through </span>
                 <span className="font-medium">{friend.activityTitle}</span>
                 {friend.venueName ? (
                   <span className="text-muted-foreground"> at {friend.venueName}</span>
