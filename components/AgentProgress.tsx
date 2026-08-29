@@ -261,6 +261,17 @@ export function AgentProgress({
   const searching = !resolved
   const scatter = React.useMemo(() => candidateScatter(20), [])
 
+  // The candidate field's dots carry full-precision `left`/`top` percentages
+  // that Framer Motion's SSR output rounds, so rendering it on the server
+  // trips a hydration mismatch. It's decorative, so mount it client-side
+  // only; its initial→animate opacity fade still covers the entrance.
+  const [mounted, setMounted] = React.useState(false)
+  React.useEffect(() => {
+    // Post-mount gate for hydration safety, not a cascade.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true)
+  }, [])
+
   return (
     <div className={cn("flex flex-col gap-4 md:flex-row", className)}>
       {/* Stylized map backdrop */}
@@ -311,7 +322,7 @@ export function AgentProgress({
           {searching && !reduce && <RadarSweep key="sweep" />}
         </AnimatePresence>
         <AnimatePresence>
-          {searching && <CandidateField key="candidates" points={scatter} reduce={reduce} />}
+          {searching && mounted && <CandidateField key="candidates" points={scatter} reduce={reduce} />}
         </AnimatePresence>
 
         {/* Center marker for the group's area. */}
