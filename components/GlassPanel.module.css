@@ -1,0 +1,24 @@
+/* Scoped extras that Tailwind utilities can't express: @supports/@media
+   fallbacks and layout containment. These rules are unlayered (plain CSS
+   Modules output), so they win over Tailwind's `@layer utilities` classes
+   regardless of source order, per the CSS cascade-layers spec. */
+
+.glass {
+  contain: layout paint;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass {
+    background-color: var(--surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass {
+    background-color: var(--surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
