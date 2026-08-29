@@ -28,7 +28,27 @@ import { cn } from "@/lib/utils";
 type Mode = "im_free" | "plan_ahead";
 type StartChoice = "now" | "1h" | "evening";
 type SocialEnergy = "low" | "medium" | "high";
-type MatchState = "idle" | "loading" | "unavailable";
+type MatchState = "idle" | "loading" | "insufficient" | "error";
+
+// Mirrors the (unexported) response shapes of POST /api/match —
+// app/api/match/route.ts's ReadyResponse / InsufficientResponse.
+interface MatchSuggestion {
+  meetupId: string;
+  activityIntent: string | null;
+  tags: string[] | null;
+  scheduledAt: string | null;
+}
+
+interface InsufficientMatch {
+  status: "insufficient";
+  nearestFuture: { startAt: string } | null;
+  suggestion: MatchSuggestion | null;
+}
+
+interface ReadyMatch {
+  status: "ready";
+  meetupId: string;
+}
 
 interface Controls {
   startChoice: StartChoice;
@@ -86,6 +106,10 @@ export default function HomePage() {
   const [sheetMode, setSheetMode] = React.useState<Mode>("im_free");
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [matchState, setMatchState] = React.useState<MatchState>("idle");
+  const [insufficientMatch, setInsufficientMatch] =
+    React.useState<InsufficientMatch | null>(null);
+  const [matchError, setMatchError] = React.useState<string | null>(null);
+  const [lastAttempt, setLastAttempt] = React.useState<Mode>("im_free");
 
   function patch(partial: Partial<Controls>) {
     setControls((c) => ({ ...c, ...partial }));
@@ -93,44 +117,56 @@ export default function HomePage() {
 
   async function startMatch(mode: Mode, c: Controls) {
     setSheetOpen(false);
+    setLastAttempt(mode);
     setMatchState("loading");
 
     const startAt =
       mode === "plan_ahead"
         ? new Date(`${c.planDate}T${c.planTime}`).toISOString()
         : computeImFreeStartAt(c.startChoice);
+    const endAt = new Date(
+      new Date(startAt).getTime() + c.maxDurationMin * 60_000,
+    ).toISOString();
 
     try {
       const res = await fetch("/api/match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // No activeUserId — /api/match derives the caller from the session
+        // (falling back to the seeded demo user), never from the body.
         body: JSON.stringify({
-          mode,
-          startAt,
-          maxDurationMin: c.maxDurationMin,
           travelKm: c.travelKm,
           budgetAud: c.budgetAud,
           socialEnergy: c.socialEnergy,
+          availability: [{ startAt, endAt, mode }],
         }),
       });
 
-      // TODO(task 2.4): POST /api/match doesn't exist in this build yet, so
-      // this hits Next's default 404 page. Once 2.4 lands: confirm the
-      // success response is `{ meetupId: string }`, and re-check whether
-      // this not-ready branch is still needed (route should exist by then,
-      // but leaving the graceful fallback costs nothing).
-      if (res.status === 404) {
-        setMatchState("unavailable");
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setMatchError(
+          typeof data?.error === "string"
+            ? data.error
+            : `Match request failed (${res.status})`,
+        );
+        setMatchState("error");
         return;
       }
-      if (!res.ok) throw new Error(`Match request failed: ${res.status}`);
 
-      const data = (await res.json()) as { meetupId?: string };
-      if (!data.meetupId) throw new Error("Match response missing meetupId");
+      if ((data as { status?: string } | null)?.status === "insufficient") {
+        setInsufficientMatch(data as InsufficientMatch);
+        setMatchState("insufficient");
+        return;
+      }
 
-      router.push(`/match?meetupId=${data.meetupId}`);
+      const ready = data as ReadyMatch;
+      if (!ready?.meetupId) throw new Error("Match response missing meetupId");
+
+      router.push(`/match?meetupId=${ready.meetupId}`);
     } catch {
-      setMatchState("unavailable");
+      setMatchError("Couldn't reach the matching service.");
+      setMatchState("error");
     }
   }
 
@@ -222,7 +258,10 @@ export default function HomePage() {
 
       <MatchOverlay
         state={matchState}
+        insufficient={insufficientMatch}
+        error={matchError}
         onDismiss={() => setMatchState("idle")}
+        onRetry={() => startMatch(lastAttempt, controls)}
       />
     </div>
   );
@@ -469,15 +508,29 @@ function Chip({
 }
 
 /* ------------------------------------------------------------------ */
-/* Match overlay — loading, and the graceful "not wired up yet" state  */
+/* Match overlay — loading, PRD §14 "insufficient" fallback, and errors */
 /* ------------------------------------------------------------------ */
+
+function formatWhen(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 function MatchOverlay({
   state,
+  insufficient,
+  error,
   onDismiss,
+  onRetry,
 }: {
   state: MatchState;
+  insufficient: InsufficientMatch | null;
+  error: string | null;
   onDismiss: () => void;
+  onRetry: () => void;
 }) {
   return (
     <AnimatePresence>
@@ -493,7 +546,7 @@ function MatchOverlay({
             withTextBacking
             className="w-full max-w-sm rounded-3xl p-6 text-center"
           >
-            {state === "loading" ? (
+            {state === "loading" && (
               <>
                 <Loader2 className="mx-auto h-8 w-8 animate-spin text-[var(--accent)]" />
                 <p className="mt-4 font-display text-lg font-semibold text-foreground">
@@ -503,15 +556,45 @@ function MatchOverlay({
                   Matching against who&apos;s free nearby right now.
                 </p>
               </>
-            ) : (
+            )}
+
+            {state === "insufficient" && (
               <>
                 <p className="font-display text-lg font-semibold text-foreground">
-                  Matching isn&apos;t wired up yet
+                  No group ready yet
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  This build doesn&apos;t have the matching engine live yet —
-                  your controls are saved and ready for when it lands.
+                  We couldn&apos;t find enough compatible people right now —
+                  you&apos;re in the pool for the next match.
                 </p>
+
+                {insufficient?.nearestFuture && (
+                  <p className="mt-4 text-sm text-foreground">
+                    Next likely window:{" "}
+                    <span className="font-medium">
+                      {formatWhen(insufficient.nearestFuture.startAt)}
+                    </span>
+                  </p>
+                )}
+
+                {insufficient?.suggestion && (
+                  <a
+                    href={`/meetup/${insufficient.suggestion.meetupId}`}
+                    className="mt-4 block rounded-2xl border border-border bg-card/60 p-3 text-left text-sm transition-colors hover:border-[var(--accent)]"
+                  >
+                    <div className="font-medium text-foreground">
+                      {insufficient.suggestion.activityIntent ??
+                        "A seeded activity nearby"}
+                    </div>
+                    {insufficient.suggestion.tags &&
+                      insufficient.suggestion.tags.length > 0 && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {insufficient.suggestion.tags.join(" · ")}
+                        </div>
+                      )}
+                  </a>
+                )}
+
                 <button
                   type="button"
                   onClick={onDismiss}
@@ -519,6 +602,33 @@ function MatchOverlay({
                 >
                   Got it
                 </button>
+              </>
+            )}
+
+            {state === "error" && (
+              <>
+                <p className="font-display text-lg font-semibold text-foreground">
+                  Something went wrong
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {error ?? "Couldn't complete the match request."}
+                </p>
+                <div className="mt-5 flex justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onDismiss}
+                    className="rounded-full border border-border px-5 py-2 text-sm font-medium text-foreground/80"
+                  >
+                    Dismiss
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onRetry}
+                    className="rounded-full bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-[var(--accent-foreground)]"
+                  >
+                    Try again
+                  </button>
+                </div>
               </>
             )}
           </GlassPanel>
