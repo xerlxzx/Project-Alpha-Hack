@@ -1,6 +1,9 @@
 "use server"
 
+import { redirect } from "next/navigation"
+
 import { assertMeetupMember, getCurrentUser } from "@/lib/current-user"
+import { describeGenderMix } from "@/lib/matcher/match"
 import { getAdminSupabase } from "@/lib/supabase/server"
 import { placeDetails } from "@/lib/venue-agent/places"
 
@@ -49,6 +52,7 @@ export interface AnonymisedMemberView {
 export interface MeetupGroupView {
   meetupId: string
   groupSize: number
+  genderMix: string
   center: { lat: number; lng: number } | null
   members: AnonymisedMemberView[]
   explanation: string[]
@@ -71,9 +75,14 @@ export async function getMeetupGroup(meetupId: string): Promise<MeetupGroupView 
 
   const { data: meetup } = await supabase
     .from("meetups")
-    .select("area_lat, area_lng")
+    .select("status, area_lat, area_lng")
     .eq("id", meetupId)
     .maybeSingle()
+
+  if (!meetup) return null
+  if (meetup.status === "confirmed" || meetup.status === "completed") {
+    redirect(`/meetup/${meetupId}`)
+  }
 
   const { data: memberRows, error: memberErr } = await supabase
     .from("meetup_members")
@@ -87,7 +96,7 @@ export async function getMeetupGroup(meetupId: string): Promise<MeetupGroupView 
   const [usersRes, profilesRes, prefsRes] = await Promise.all([
     supabase.from("users").select("id, is_verified").in("id", userIds),
     supabase.from("profiles").select("user_id, age_range").in("user_id", userIds),
-    supabase.from("preferences").select("user_id, interests, hobbies").in("user_id", userIds),
+    supabase.from("preferences").select("user_id, interests, hobbies, gender").in("user_id", userIds),
   ])
 
   const verifiedById = new Map((usersRes.data ?? []).map((u) => [u.id as string, Boolean(u.is_verified)]))
@@ -98,6 +107,12 @@ export async function getMeetupGroup(meetupId: string): Promise<MeetupGroupView 
     (prefsRes.data ?? []).map((p) => [
       p.user_id as string,
       new Set<string>([...((p.interests as string[] | null) ?? []), ...((p.hobbies as string[] | null) ?? [])]),
+    ])
+  )
+  const genderById = new Map(
+    (prefsRes.data ?? []).map((p) => [
+      p.user_id as string,
+      (p.gender as string | null) ?? null,
     ])
   )
 
@@ -131,5 +146,12 @@ export async function getMeetupGroup(meetupId: string): Promise<MeetupGroupView 
       ? { lat: meetup.area_lat, lng: meetup.area_lng }
       : null
 
-  return { meetupId, groupSize: userIds.length, center, members, explanation }
+  return {
+    meetupId,
+    groupSize: userIds.length,
+    genderMix: describeGenderMix(userIds.map((id) => genderById.get(id))),
+    center,
+    members,
+    explanation,
+  }
 }

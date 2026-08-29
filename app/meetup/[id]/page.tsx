@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { ChatThread, MemberReveal, type ChatMember, type ChatMessage } from "@/components/ChatThread"
 import { LockMeIn } from "@/components/Countdown"
+import { DemoTimeSkip } from "@/components/DemoTimeSkip"
 
 // Same convention as app/layout.tsx, app/profile/page.tsx, and
 // app/onboarding/actions.ts: fall back to the seeded active demo user when
@@ -122,6 +123,8 @@ export default async function MeetupPage({
     .from("activity_recommendations")
     .select("venue_name, activity_title, reason, est_cost_aud, est_distance_km, booking_url")
     .eq("meetup_id", id)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle()
 
   const { data: messageRows } = await client
@@ -206,6 +209,7 @@ export default async function MeetupPage({
         venueName={recommendation?.venue_name ?? "TBC"}
         scheduledAt={meetup.scheduled_at}
       />
+      <DemoTimeSkip meetupId={id} />
     </main>
   )
 }
