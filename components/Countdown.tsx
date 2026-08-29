@@ -134,10 +134,10 @@ function buildIcsContent({
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Momentum//Meetup//EN",
+    "PRODID:-//Project Alpha//Meetup//EN",
     "CALSCALE:GREGORIAN",
     "BEGIN:VEVENT",
-    `UID:${uid}@momentum.app`,
+    `UID:${uid}@project-alpha.app`,
     `DTSTAMP:${toIcsUtc(now)}`,
     `DTSTART:${toIcsUtc(start)}`,
     `DTEND:${toIcsUtc(end)}`,
@@ -219,7 +219,7 @@ export function LockMeIn({ meetupId, activityTitle, venueName, scheduledAt }: Lo
                 uid: meetupId,
                 title: activityTitle,
                 location: venueName,
-                description: `Momentum meetup: ${activityTitle} at ${venueName}.`,
+                description: `Project Alpha meetup: ${activityTitle} at ${venueName}.`,
                 start: new Date(scheduledAt),
               })
             )

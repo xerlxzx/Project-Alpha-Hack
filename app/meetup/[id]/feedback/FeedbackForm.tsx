@@ -97,7 +97,7 @@ export function FeedbackForm({
       const names = payload.reconnectedWith ?? []
       const tags = payload.derivedSignal?.tags ?? []
       setSuccess({
-        message: names.length > 0 ? `Reconnected with ${names.join(" & ")}` : "Momentum updated",
+        message: names.length > 0 ? `Reconnected with ${names.join(" & ")}` : "Project Alpha updated",
         detail:
           payload.interpretationWarning
             ? "Feedback saved. Your private note can be interpreted later."
@@ -154,7 +154,7 @@ export function FeedbackForm({
             Anyone you’d meet again?
           </legend>
           <p className="text-sm text-muted-foreground">
-            These choices stay between you and Momentum.
+            These choices stay between you and Project Alpha.
           </p>
           <div className="flex flex-col gap-2 pt-1">
             {members.map((member) => {
@@ -252,7 +252,7 @@ export function FeedbackForm({
           ) : (
             <Heart className="size-4" aria-hidden />
           )}
-          {submitting ? "Saving your feedback…" : "Finish & update Momentum"}
+          {submitting ? "Saving your feedback…" : "Finish & update Project Alpha"}
         </button>
 
         <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">

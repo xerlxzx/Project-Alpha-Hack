@@ -23,9 +23,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Momentum — stop scrolling, start doing",
+  title: "Project Alpha: stop scrolling, start doing",
   description:
-    "Momentum matches university students with compatible people nearby, then an AI agent finds a real place to meet. You just say yes.",
+    "Project Alpha matches university students with compatible people nearby, then an AI agent finds a real place to meet. You just say yes.",
   manifest: "/manifest.json",
 };
 

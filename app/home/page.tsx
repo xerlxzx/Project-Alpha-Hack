@@ -199,7 +199,7 @@ export default function HomePage() {
             variants={riseItem}
             className="mx-auto mt-3 max-w-sm text-muted-foreground"
           >
-            One tap and Momentum starts matching you with people free right
+            One tap and Project Alpha starts matching you with people free right
             now — or plan something for later.
           </motion.p>
 

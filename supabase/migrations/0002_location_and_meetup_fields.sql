@@ -1,4 +1,4 @@
--- Momentum location and user-meetup fields (Task 1.4)
+-- Project Alpha location and user-meetup fields (Task 1.4)
 --
 -- Fills two gaps flagged in Planning/sdd/reports/task-1.2-report.md:
 -- 1. `preferences` had no approximate-location column at all (PRD §9.2

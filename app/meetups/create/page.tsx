@@ -111,7 +111,7 @@ export default function CreateMeetupPage() {
             Start a meetup
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Say what you want to do. Momentum helps you find people and a place.
+            Say what you want to do. Project Alpha helps you find people and a place.
           </p>
         </div>
       </header>

@@ -315,7 +315,7 @@ function CompletedMeetup({ meetupId }: { meetupId: string }) {
           How did it feel?
         </h1>
         <p className="text-sm leading-6 text-muted-foreground">
-          A few private taps help shape your next match and update your Momentum.
+          A few private taps help shape your next match and update your Project Alpha.
         </p>
       </div>
       <Link
