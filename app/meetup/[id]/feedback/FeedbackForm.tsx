@@ -23,6 +23,7 @@ interface FeedbackResponse {
   error?: string
   detail?: string
   derivedSignal?: { tags: string[]; sentiment: "positive" | "neutral" | "negative" } | null
+  interpretationWarning?: string | null
   preferenceUpdated?: boolean
   reconnectedWith?: string[]
 }
@@ -98,7 +99,9 @@ export function FeedbackForm({
       setSuccess({
         message: names.length > 0 ? `Reconnected with ${names.join(" & ")}` : "Momentum updated",
         detail:
-          tags.length > 0
+          payload.interpretationWarning
+            ? "Feedback saved. Your private note can be interpreted later."
+            : tags.length > 0
             ? `Future matches now know: ${tags.slice(0, 3).join(", ")}`
             : "Your activity is now part of this week’s progress.",
       })
@@ -130,13 +133,13 @@ export function FeedbackForm({
                   aria-pressed={selected}
                   onClick={() => setReaction(selected ? null : option.value)}
                   className={cn(
-                    "flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-2xl border bg-card px-2 py-3 text-center text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                    "flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-2xl border bg-card px-2 py-3 text-center text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-foreground/30",
                     selected
-                      ? "border-accent bg-accent/10 text-foreground"
+                      ? "border-foreground/30 bg-secondary text-foreground"
                       : "border-border text-muted-foreground hover:border-foreground/20 hover:text-foreground"
                   )}
                 >
-                  <span className="font-display text-2xl text-accent" aria-hidden>
+                  <span className="font-display text-2xl text-foreground" aria-hidden>
                     {option.symbol}
                   </span>
                   {option.label}
@@ -179,13 +182,13 @@ export function FeedbackForm({
                       aria-pressed={signal.meetAgain}
                       onClick={() => updateSignal(member.userId, "meetAgain")}
                       className={cn(
-                        "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                        "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-foreground/30",
                         signal.meetAgain
-                          ? "border-accent bg-accent/10 text-foreground"
+                          ? "border-foreground/30 bg-secondary text-foreground"
                           : "border-border text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      <UserRoundCheck className="size-4 text-accent" aria-hidden />
+                      <UserRoundCheck className="size-4" aria-hidden />
                       Meet again
                     </button>
                     <button
@@ -224,7 +227,7 @@ export function FeedbackForm({
             maxLength={500}
             rows={3}
             placeholder="More low-key outdoor plans like this…"
-            className="resize-none rounded-2xl border border-border bg-card px-4 py-3 text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30"
+            className="resize-none rounded-2xl border border-border bg-card px-4 py-3 text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-foreground/30 focus-visible:ring-2 focus-visible:ring-foreground/20"
           />
           <span className="self-end text-xs tabular-nums text-muted-foreground">{note.length}/500</span>
         </div>
@@ -253,7 +256,7 @@ export function FeedbackForm({
         </button>
 
         <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-          <Sparkles className="size-3.5 text-accent" aria-hidden />
+          <Sparkles className="size-3.5" aria-hidden />
           Private signals only — never public ratings.
         </p>
       </form>

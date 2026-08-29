@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai"
 import { NextResponse } from "next/server"
+import { createHash } from "node:crypto"
 import { z } from "zod"
 
 import { GEMINI_MODEL, getEnv } from "@/lib/config"
@@ -39,13 +40,18 @@ const PreferenceSignalSchema = z.object({
 })
 
 type PreferenceSignal = z.infer<typeof PreferenceSignalSchema>
+type PersonSignal = z.infer<typeof PersonSignalSchema>
 
 interface FeedbackRow {
+  id: string
   about_user: string | null
   meet_again: boolean | null
+  avoid_rematch: boolean | null
+  note: string | null
 }
 
 interface FeedbackInsert {
+  id: string
   meetup_id: string
   from_user: string
   about_user: string | null
@@ -59,6 +65,8 @@ async function getWriteClient(user: CurrentUser) {
   return user.isDemo ? getAdminSupabase() : await getServerSupabase()
 }
 
+type WriteClient = Awaited<ReturnType<typeof getWriteClient>>
+
 function normalizeTags(tags: string[]): string[] {
   const seen = new Set<string>()
   return tags.flatMap((raw) => {
@@ -70,8 +78,9 @@ function normalizeTags(tags: string[]): string[] {
   })
 }
 
-async function derivePreferenceSignal(note: string): Promise<PreferenceSignal> {
-  const ai = new GoogleGenAI({ apiKey: getEnv("GEMINI_API_KEY") })
+async function derivePreferenceSignal(
+  note: string
+): Promise<{ signal: PreferenceSignal | null; warning: string | null }> {
   const prompt = [
     "Convert this private post-meetup note into future matching preferences.",
     "Return short activity/setting tags only when directly supported by the note.",
@@ -83,6 +92,7 @@ async function derivePreferenceSignal(note: string): Promise<PreferenceSignal> {
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
+      const ai = new GoogleGenAI({ apiKey: getEnv("GEMINI_API_KEY") })
       const response = await ai.models.generateContent({
         model: GEMINI_MODEL,
         contents: prompt,
@@ -93,13 +103,72 @@ async function derivePreferenceSignal(note: string): Promise<PreferenceSignal> {
       })
       if (!response.text) throw new Error("Gemini returned no structured output")
       const parsed = PreferenceSignalSchema.parse(JSON.parse(response.text))
-      return { ...parsed, tags: normalizeTags(parsed.tags) }
+      return {
+        signal: { ...parsed, tags: normalizeTags(parsed.tags) },
+        warning: null,
+      }
     } catch {
-      // Retry exactly once. We do not invent a preference signal if both attempts fail.
+      // Retry exactly once. Feedback and deterministic outcomes remain available
+      // if both attempts fail; the warning is persisted with the private note.
     }
   }
 
-  throw new Error("preference_signal_failed")
+  return {
+    signal: null,
+    warning: "Your feedback was saved, but the private note could not be interpreted yet.",
+  }
+}
+
+function stableUuid(scope: "feedback" | "momentum", ...parts: string[]): string {
+  const hex = createHash("sha256")
+    .update([scope, ...parts].join(":"))
+    .digest("hex")
+    .slice(0, 32)
+    .split("")
+
+  // RFC 9562 UUIDv8 custom/variant bits over deterministic SHA-256 bytes.
+  hex[12] = "8"
+  hex[16] = ((Number.parseInt(hex[16], 16) & 0x3) | 0x8).toString(16)
+  const value = hex.join("")
+  return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`
+}
+
+function isUniqueViolation(error: { code?: string } | null): boolean {
+  return error?.code === "23505"
+}
+
+function readStoredFeedback(row: FeedbackRow): {
+  signal: PreferenceSignal | null
+  people: PersonSignal[]
+  warning: string | null
+} {
+  let stored: unknown
+  try {
+    stored = row.note ? JSON.parse(row.note) : null
+  } catch {
+    stored = null
+  }
+
+  const object =
+    stored && typeof stored === "object" ? (stored as Record<string, unknown>) : null
+  const signalResult = PreferenceSignalSchema.safeParse(object?.preferenceSignal)
+  const peopleResult = z.array(PersonSignalSchema).safeParse(object?.personSignals)
+  const fallbackPeople =
+    row.about_user && (row.meet_again || row.avoid_rematch)
+      ? [
+          {
+            userId: row.about_user,
+            meetAgain: Boolean(row.meet_again),
+            avoidRematch: Boolean(row.avoid_rematch),
+          },
+        ]
+      : []
+
+  return {
+    signal: signalResult.success ? signalResult.data : null,
+    people: peopleResult.success ? peopleResult.data : fallbackPeople,
+    warning: typeof object?.interpretationWarning === "string" ? object.interpretationWarning : null,
+  }
 }
 
 function isoWeekNumber(date: Date): number {
@@ -135,28 +204,44 @@ async function ensureMomentumEvent(userId: string, meetupId: string) {
   if (existing) return false
 
   const completedAt = new Date()
+  const eventId = stableUuid("momentum", userId, activity.id)
   const { error } = await admin.from("momentum_events").insert({
+    id: eventId,
     user_id: userId,
     activity_id: activity.id,
     week: isoWeekNumber(completedAt),
     completed_at: completedAt.toISOString(),
     hours: null,
   })
-  if (error) throw new Error(`momentum_insert_failed:${error.message}`)
+  if (error) {
+    if (!isUniqueViolation(error)) {
+      throw new Error(`momentum_insert_failed:${error.message}`)
+    }
+
+    const { data: winner, error: winnerError } = await admin
+      .from("momentum_events")
+      .select("id")
+      .eq("id", eventId)
+      .maybeSingle()
+    if (winnerError || !winner) {
+      throw new Error(`momentum_reread_failed:${winnerError?.message ?? "row missing"}`)
+    }
+    return false
+  }
   return true
 }
 
 async function reconnectUsers(
   userId: string,
   meetupId: string,
-  feedbackRows: FeedbackRow[]
+  people: PersonSignal[]
 ): Promise<string[]> {
   const admin = getAdminSupabase()
   const reconnectedIds: string[] = []
 
-  for (const row of feedbackRows) {
-    const otherId = row.about_user
-    if (!row.meet_again || !otherId || otherId === userId) continue
+  for (const person of people) {
+    const otherId = person.userId
+    if (!person.meetAgain || otherId === userId) continue
 
     const [userA, userB] = [userId, otherId].sort()
     const { data: friendship, error: friendshipError } = await admin
@@ -174,16 +259,19 @@ async function reconnectUsers(
       continue
     }
 
-    const { data: reciprocal, error: reciprocalError } = await admin
+    const { data: reciprocalRows, error: reciprocalError } = await admin
       .from("feedback")
-      .select("id")
+      .select(FEEDBACK_SELECT)
       .eq("meetup_id", meetupId)
       .eq("from_user", otherId)
-      .eq("about_user", userId)
-      .eq("meet_again", true)
-      .limit(1)
-      .maybeSingle()
     if (reciprocalError) throw new Error(`reciprocal_lookup_failed:${reciprocalError.message}`)
+    const reciprocal = (reciprocalRows ?? []).some(
+      (feedback) =>
+        (feedback.about_user === userId && feedback.meet_again) ||
+        readStoredFeedback(feedback).people.some(
+          (person) => person.userId === userId && person.meetAgain
+        )
+    )
     if (!reciprocal) continue
 
     const { error: insertError } = await admin.from("friendships").upsert(
@@ -204,6 +292,74 @@ async function reconnectUsers(
 
   const nameById = new Map((profiles ?? []).map((profile) => [profile.user_id, profile.first_name]))
   return [...new Set(reconnectedIds)].map((id) => nameById.get(id) ?? "a group member")
+}
+
+const FEEDBACK_SELECT = "id, about_user, meet_again, avoid_rematch, note" as const
+
+async function findExistingFeedback(
+  client: WriteClient,
+  userId: string,
+  meetupId: string
+): Promise<FeedbackRow | null> {
+  const { data, error } = await client
+    .from("feedback")
+    .select(FEEDBACK_SELECT)
+    .eq("meetup_id", meetupId)
+    .eq("from_user", userId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new Error(`feedback_lookup_failed:${error.message}`)
+  return data
+}
+
+async function insertFeedback(
+  client: WriteClient,
+  row: FeedbackInsert
+): Promise<{ row: FeedbackRow; inserted: boolean }> {
+  const { data, error } = await client.from("feedback").insert(row).select(FEEDBACK_SELECT).single()
+  if (!error && data) return { row: data, inserted: true }
+  if (!isUniqueViolation(error)) {
+    throw new Error(`feedback_insert_failed:${error?.message ?? "row missing"}`)
+  }
+
+  // A concurrent request with the same caller/meetup uses the same primary
+  // key. The winner's persisted payload is authoritative for all side effects.
+  const { data: winner, error: winnerError } = await client
+    .from("feedback")
+    .select(FEEDBACK_SELECT)
+    .eq("id", row.id)
+    .maybeSingle()
+  if (winnerError || !winner) {
+    throw new Error(`feedback_reread_failed:${winnerError?.message ?? "row missing"}`)
+  }
+  return { row: winner, inserted: false }
+}
+
+async function applyPreferenceSignal(
+  client: WriteClient,
+  userId: string,
+  signal: PreferenceSignal | null
+): Promise<boolean> {
+  if (!signal || signal.tags.length === 0) return false
+
+  const { data: preferences, error: lookupError } = await client
+    .from("preferences")
+    .select("interests")
+    .eq("user_id", userId)
+    .maybeSingle()
+  if (lookupError) throw new Error(`preference_lookup_failed:${lookupError.message}`)
+
+  const currentInterests = (preferences?.interests ?? []) as string[]
+  const mergedInterests = normalizeTags([...currentInterests, ...signal.tags])
+  if (mergedInterests.length === currentInterests.length) return false
+
+  const { error: updateError } = await client
+    .from("preferences")
+    .update({ interests: mergedInterests })
+    .eq("user_id", userId)
+  if (updateError) throw new Error(`preference_update_failed:${updateError.message}`)
+  return true
 }
 
 export async function POST(request: Request) {
@@ -261,116 +417,64 @@ export async function POST(request: Request) {
   }
 
   const writeClient = await getWriteClient(currentUser)
-  const { data: existingRows, error: existingError } = await writeClient
-    .from("feedback")
-    .select("about_user, meet_again")
-    .eq("meetup_id", meetupId)
-    .eq("from_user", currentUser.id)
-  if (existingError) {
-    return NextResponse.json({ error: "feedback_lookup_failed", detail: existingError.message }, { status: 500 })
-  }
-
   try {
-    // A retried request resumes the two server-computed outcomes without
-    // duplicating private feedback or re-interpreting its note.
-    if (existingRows && existingRows.length > 0) {
-      const momentumAdded = await ensureMomentumEvent(currentUser.id, meetupId)
-      const reconnectedWith = await reconnectUsers(currentUser.id, meetupId, existingRows)
-      return NextResponse.json({
-        ok: true,
-        alreadySubmitted: true,
-        momentumAdded,
-        preferenceUpdated: false,
-        derivedSignal: null,
-        reconnectedWith,
+    const existing = await findExistingFeedback(writeClient, currentUser.id, meetupId)
+    let persisted: FeedbackRow
+    let inserted = false
+
+    if (existing) {
+      persisted = existing
+    } else {
+      const trimmedNote = note.trim()
+      const interpretation = trimmedNote
+        ? await derivePreferenceSignal(trimmedNote)
+        : { signal: null, warning: null }
+      const selectedPeople = parsed.data.people.filter(
+        (person) => person.meetAgain || person.avoidRematch
+      )
+      const primaryPerson = selectedPeople[0] ?? null
+      const result = await insertFeedback(writeClient, {
+        id: stableUuid("feedback", meetupId, currentUser.id),
+        meetup_id: meetupId,
+        from_user: currentUser.id,
+        about_user: primaryPerson?.userId ?? null,
+        group_reaction: groupReaction,
+        meet_again: primaryPerson?.meetAgain ?? false,
+        avoid_rematch: primaryPerson?.avoidRematch ?? false,
+        note: JSON.stringify({
+          text: trimmedNote,
+          preferenceSignal: interpretation.signal,
+          personSignals: selectedPeople,
+          interpretationWarning: interpretation.warning,
+        }),
       })
+      persisted = result.row
+      inserted = result.inserted
     }
 
-    const trimmedNote = note.trim()
-    const derivedSignal = trimmedNote ? await derivePreferenceSignal(trimmedNote) : null
-    const selectedPeople = parsed.data.people.filter(
-      (person) => person.meetAgain || person.avoidRematch
-    )
-    const rows: FeedbackInsert[] =
-      selectedPeople.length > 0
-        ? selectedPeople.map((person, index) => ({
-            meetup_id: meetupId,
-            from_user: currentUser.id,
-            about_user: person.userId,
-            group_reaction: index === 0 ? groupReaction : null,
-            meet_again: person.meetAgain,
-            avoid_rematch: person.avoidRematch,
-            note:
-              index === 0 && trimmedNote
-                ? JSON.stringify({ text: trimmedNote, preferenceSignal: derivedSignal })
-                : null,
-          }))
-        : [
-            {
-              meetup_id: meetupId,
-              from_user: currentUser.id,
-              about_user: null,
-              group_reaction: groupReaction,
-              meet_again: false,
-              avoid_rematch: false,
-              note: trimmedNote
-                ? JSON.stringify({ text: trimmedNote, preferenceSignal: derivedSignal })
-                : null,
-            },
-          ]
-
-    let preferenceUpdated = false
-    if (derivedSignal && derivedSignal.tags.length > 0) {
-      const { data: preferences, error: preferenceLookupError } = await writeClient
-        .from("preferences")
-        .select("interests")
-        .eq("user_id", currentUser.id)
-        .maybeSingle()
-      if (preferenceLookupError) {
-        throw new Error(`preference_lookup_failed:${preferenceLookupError.message}`)
-      }
-
-      const currentInterests = (preferences?.interests ?? []) as string[]
-      const mergedInterests = normalizeTags([...currentInterests, ...derivedSignal.tags])
-      preferenceUpdated = mergedInterests.length > currentInterests.length
-      if (preferenceUpdated) {
-        const { error: preferenceUpdateError } = await writeClient
-          .from("preferences")
-          .update({ interests: mergedInterests })
-          .eq("user_id", currentUser.id)
-        if (preferenceUpdateError) {
-          throw new Error(`preference_update_failed:${preferenceUpdateError.message}`)
-        }
-      }
-    }
-
-    // Preference updates happen before feedback insertion. If feedback
-    // insertion fails, a retry can safely merge the same deduplicated tags;
-    // once feedback exists, retries only resume server-computed outcomes.
-    const { data: insertedRows, error: insertError } = await writeClient
-      .from("feedback")
-      .insert(rows)
-      .select("about_user, meet_again")
-    if (insertError) throw new Error(`feedback_insert_failed:${insertError.message}`)
-
+    // The feedback row (including its validated signal or AI warning) is
+    // durable before any preference mutation. Retrying always reuses this
+    // persisted payload, so a different Gemini result cannot compound tags.
+    const stored = readStoredFeedback(persisted)
     const momentumAdded = await ensureMomentumEvent(currentUser.id, meetupId)
-    const reconnectedWith = await reconnectUsers(
+    const reconnectedWith = await reconnectUsers(currentUser.id, meetupId, stored.people)
+    const preferenceUpdated = await applyPreferenceSignal(
+      writeClient,
       currentUser.id,
-      meetupId,
-      insertedRows ?? []
+      stored.signal
     )
 
     return NextResponse.json({
       ok: true,
-      alreadySubmitted: false,
+      alreadySubmitted: !inserted,
       momentumAdded,
       preferenceUpdated,
-      derivedSignal,
+      derivedSignal: stored.signal,
+      interpretationWarning: stored.warning,
       reconnectedWith,
     })
   } catch (error) {
     const detail = error instanceof Error ? error.message : "feedback_failed"
-    const status = detail === "preference_signal_failed" ? 502 : 500
-    return NextResponse.json({ error: "feedback_failed", detail }, { status })
+    return NextResponse.json({ error: "feedback_failed", detail }, { status: 500 })
   }
 }
