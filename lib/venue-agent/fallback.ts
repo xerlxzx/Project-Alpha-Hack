@@ -1,9 +1,7 @@
 import type { Recommendation } from "@/lib/venue-agent/schema"
 
-// PRD §14: when Places/Gemini fail (or the ranked pick fails validation)
-// after one retry, the agent returns this cached, clearly-labelled demo
-// recommendation instead of failing the request. `source: "fallback"` is
-// attached by the caller (lib/venue-agent/agent.ts).
+// When Places/Gemini fail after one retry, the agent returns this cached
+// recommendation. The caller (lib/venue-agent/agent.ts) attaches `source: "fallback"`.
 export const FALLBACK_RECOMMENDATION: Recommendation = {
   activityTitle: "Casual basketball at Prince Alfred Park",
   placeId: "cached-fallback-prince-alfred-park",

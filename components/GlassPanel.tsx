@@ -6,29 +6,21 @@ import styles from "./GlassPanel.module.css";
 
 export interface GlassPanelProps extends React.HTMLAttributes<HTMLDivElement> {
   /**
-   * Renders a semi-opaque solid backing layer behind children, so text sitting
-   * on the glass stays legible regardless of what's behind the panel (see
-   * DESIGN_DIRECTION.md's dark-mode contrast note).
+   * Renders a semi-opaque solid backing layer behind children so text stays
+   * legible regardless of what's behind the panel.
    */
   withTextBacking?: boolean;
   /**
-   * Set true only while the panel is actively animating (e.g. a sheet
-   * sliding in) to opt into `will-change: backdrop-filter`; leave false at
-   * rest so the browser isn't holding a compositing layer permanently.
+   * Enables `will-change: backdrop-filter` during animation. Disable at rest
+   * so the browser releases the compositing layer.
    */
   transitioning?: boolean;
 }
 
 /**
- * The Liquid-Glass surface recipe from DESIGN_DIRECTION.md ("Surface
- * material — Liquid Glass, scoped"). Reserved for chrome/hero surfaces ONLY:
- * bottom sheets, modals, the agent-progress overlay, and the nav bar.
- * Data-dense surfaces (venue cards, group cards, chat, list rows, forms) use
- * flat premium surfaces instead — do not reach for this component there.
- *
- * Do not nest a GlassPanel inside another GlassPanel: stacked translucency
- * compounds blur and opacity and breaks the contrast guarantees this recipe
- * relies on.
+ * Liquid-glass surface: backdrop blur + saturation + a frosted tint.
+ * Do not nest GlassPanels. Stacked translucency
+ * compounds blur and opacity and breaks contrast.
  */
 export const GlassPanel = React.forwardRef<HTMLDivElement, GlassPanelProps>(
   (

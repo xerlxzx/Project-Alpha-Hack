@@ -34,9 +34,8 @@ export interface RunVenueAgentResult {
   source: "live" | "fallback"
 }
 
-// What Gemini is allowed to contribute when ranking candidates: it may pick
-// from the supplied placeIds and explain the pick, but it never supplies
-// venue facts — those always come from Places (see buildRecommendation).
+// Gemini may pick a supplied placeId and explain it. Places supplies all
+// venue facts.
 const RankResultSchema = z.object({
   placeId: z.string(),
   activityTitle: z.string(),
@@ -64,8 +63,7 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
   return EARTH_RADIUS_KM * 2 * Math.asin(Math.sqrt(h))
 }
 
-// Every fact in the returned Recommendation must trace back to `detail`
-// (Places) or `rank` (Gemini's pick + explanation) — never invented.
+// Recommendation facts come from Places details or Gemini's validated rank.
 function buildRecommendation(detail: PlaceDetail, rank: RankResult, group: GroupProfile): Recommendation {
   const estimatedDistanceKm = haversineKm(group.center, detail.location)
   // Places priceLevel is ordinal, not an AUD amount. No factual AUD source

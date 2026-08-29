@@ -12,14 +12,9 @@ export interface ShareCardProps {
 }
 
 /**
- * The shareable Momentum recap (PRD 9.18): "2/2 plans completed. Four-week
- * Momentum streak." Deliberately shows only aggregate numbers - no
- * participant names, photos, venue names, or addresses are ever passed
- * into this component, so identities and exact locations are hidden by
- * construction rather than filtered out at render time.
- *
- * "Share" here is a copy-to-clipboard affordance, not a real share-sheet
- * integration - sufficient for a preview per the brief.
+ * Shareable Momentum recap with aggregate numbers only. The component accepts
+ * no participant or venue details.
+ * "Share" copies the recap to the clipboard for this preview.
  */
 export function ShareCard({ completed, goal, streak, className }: ShareCardProps) {
   const [copied, setCopied] = React.useState(false)
@@ -32,8 +27,7 @@ export function ShareCard({ completed, goal, streak, className }: ShareCardProps
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      // Clipboard access can be denied or unavailable - the card is still a
-      // valid preview without it, so failing silently is fine here.
+      // Keep the preview usable when clipboard access fails.
     }
   }
 

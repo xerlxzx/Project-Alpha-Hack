@@ -10,7 +10,7 @@ import { SearchPlanSchema, type SearchPlan } from "@/lib/venue-agent/schema"
 import { buildGroupProfileForMeetup } from "@/app/api/venue-agent/route"
 
 // What Gemini may contribute when re-ranking for a reroll: a pick from the
-// (already-filtered) candidates plus an explanation — never a venue fact.
+// filtered candidates plus an explanation. Places supplies venue facts.
 const RerollRankResultSchema = z.object({
   placeId: z.string(),
   activityTitle: z.string(),
@@ -18,7 +18,7 @@ const RerollRankResultSchema = z.object({
   confidence: z.number().min(0).max(1),
 })
 
-// A fresh AI-generated search plan isn't needed for a reroll — the group's
+// Reuse the group's constraints for rerolls. The group's
 // constraints haven't changed since the original recommendation, so the
 // search plan is derived directly from the profile. Exclusion of the prior
 // venue happens in searchPlaces below, not here.
@@ -51,11 +51,8 @@ function buildRerollRankPrompt(candidates: PlaceCandidate[], group: GroupProfile
 
 // Builds venue-agent deps for a reroll: the same Places-backed search/details
 // calls as the default agent, but with the prior recommendation's placeId
-// filtered out of the candidate set *before* Gemini ever ranks it — a
-// structural guarantee it can't be picked again, not just a prompt
-// instruction. agent.ts's own default deps builder is private (and this task
-// doesn't own agent.ts), so this is a small reroll-specific deps object
-// rather than a shared import — see task-3.4-report.md for the rationale.
+// filtered out before Gemini ranks candidates, preventing a repeat pick.
+// agent.ts keeps its default deps builder private, so rerolls define their own.
 function buildRerollDeps(excludePlaceId: string): AgentDeps {
   const ai = new GoogleGenAI({ apiKey: getEnv("GEMINI_API_KEY") })
 
@@ -118,7 +115,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (!member) {
     return NextResponse.json({ error: "not_a_member" }, { status: 403 })
   }
-  // PRD §9.9: one reroll per member. Checked before any agent work runs.
+  // One reroll per member. Checked before any agent work runs.
   if (member.reroll_used) {
     return NextResponse.json({ error: "reroll_already_used" }, { status: 409 })
   }

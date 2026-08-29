@@ -17,12 +17,8 @@ export interface VenueDetail {
 }
 
 /**
- * The venue-agent HTTP response returns only the Recommendation (PRD §17),
- * which carries no coordinates, address, or open status. AgentProgress needs
- * a real lat/lng for the selected-venue pin and ProposalCard wants the
- * address — resolve both here from Places (server-only: uses the secret
- * key). Returns null for the cached fallback recommendation (its placeId is
- * not a real Place) or on any Places error.
+ * Resolves venue display fields from Places for a given recommendation.
+ * Returns null for cached fallbacks and on Places errors.
  */
 export async function getVenueDetail(placeId: string): Promise<VenueDetail | null> {
   if (!placeId || placeId.startsWith("cached-fallback")) {
@@ -59,12 +55,8 @@ export interface MeetupGroupView {
 }
 
 /**
- * Resume path for `/match?meetupId=…` — the home page redirects here after it
- * has already called `POST /api/match`, so the meetup + members exist but the
- * matcher's explanation text was never persisted. Recompute a truthful
- * summary from the group's real overlapping interests and verification state
- * (a real property of the group, not fabricated). §9.10 allow-list only —
- * verification, age range, and shared interests; never names/photos/location.
+ * Rebuilds the match summary for `/match?meetupId=…`. Exposes only
+ * verification status, age range, and shared interests per member.
  */
 export async function getMeetupGroup(meetupId: string): Promise<MeetupGroupView | null> {
   const currentUser = await getCurrentUser()

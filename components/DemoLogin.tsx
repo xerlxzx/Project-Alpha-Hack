@@ -14,7 +14,7 @@ export interface DemoLoginProps {
 }
 
 /**
- * "Enter demo" — signs the browser in as the seeded active user
+ * "Enter demo" signs the browser in as the seeded active user
  * (00000000-0000-0000-0001-000000000001) so the whole journey is walkable
  * without a real university email. See demo-login-action.ts for how the
  * session is minted; this component only ever sees a token hash, never the

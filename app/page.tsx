@@ -63,7 +63,7 @@ export default function LandingPage() {
   );
 }
 
-/* Ambient background — quiet warm wash, theme-aware, reduced-motion safe. */
+/* Quiet ambient background with reduced-motion support. */
 function Atmosphere() {
   const reduce = useReducedMotion();
   return (

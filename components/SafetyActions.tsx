@@ -17,9 +17,9 @@ import {
 import { cn } from "@/lib/utils"
 
 export interface SafetyActionsProps {
-  /** The participant being blocked / reported. Never a name — an id. */
+  /** Participant ID to block or report. Never pass a name. */
   targetUserId: string
-  /** Optional post-reveal first name (PRD §9.11) purely for the button labels. */
+  /** Optional first name used in button labels. */
   targetLabel?: string
   /** Meetup this is happening in, attached to a report when present. */
   meetupId?: string
@@ -200,10 +200,8 @@ function ReportAction({
   )
 }
 
-// UI stub only (per the 6.3 dispatch): "share activity + check-in status with
-// a trusted contact". No backend — there's no trusted-contacts table, and the
-// PRD marks this optional. Captures a contact locally and shows a confirmed
-// state so the safety story is demoable end to end.
+// UI stub: shares activity + check-in status with a trusted contact.
+// Captures a contact locally and shows a confirmed state; no backend yet.
 function TrustedContactAction() {
   const [name, setName] = React.useState("")
   const [shared, setShared] = React.useState(false)
@@ -256,12 +254,7 @@ function TrustedContactAction() {
   )
 }
 
-/**
- * Safety controls for a co-participant — block, report, and loop in a trusted
- * contact (PRD §9.16, §10). Flat surface (a control cluster, not chrome); the
- * dialogs it opens carry the shared glass treatment. Never renders report
- * history — that's never shown to participants.
- */
+/** Block, report, and trusted-contact controls for a co-participant. */
 export function SafetyActions({ targetUserId, targetLabel, meetupId, className }: SafetyActionsProps) {
   const who = targetLabel?.trim() || "this person"
 

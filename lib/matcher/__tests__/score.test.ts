@@ -19,8 +19,7 @@ function makeProfile(userId: string): Profile {
   }
 }
 
-// `areaLat`/`areaLng` are landing on `Preferences` via a parallel migration
-// (see score.ts header comment) — included here ahead of that type update.
+// Temporary geo fields pending the parallel Preferences type update.
 type PreferencesWithGeo = Preferences & { areaLat?: number | null; areaLng?: number | null }
 
 function makePreferences(userId: string, overrides: Partial<PreferencesWithGeo> = {}): PreferencesWithGeo {

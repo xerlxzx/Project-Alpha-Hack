@@ -24,7 +24,7 @@ export interface MapPin {
 }
 
 export interface AgentProgressProps {
-  /** The 5 states: Analyzing group interests → Searching Google Places → Found N candidates → Ranking by fit → Selected: [venue]. */
+  /** Five venue-agent states from analysis through selection. */
   steps: AgentStep[]
   /** Dropped in as they arrive from the live route data. */
   pins: MapPin[]
@@ -37,10 +37,8 @@ export interface AgentProgressProps {
 const KM_PER_DEG_LAT = 111.32
 
 /**
- * Simple equirectangular projection: lat/lng degrees -> a 0-100 percentage
- * position within the map container, framed by `boundsKm` around `center`.
- * No map library — the pins read as real because these ARE the real venue
- * coordinates, just placed on a stylized backdrop instead of tiles.
+ * Projects real venue coordinates onto a 0-100% stylized map frame.
+ * `boundsKm` sets the radius around `center`.
  */
 function projectToPercent(
   point: { lat: number; lng: number },
@@ -129,11 +127,7 @@ function MapPinMarker({
 }
 
 /**
- * The demo-critical agent-progress screen: a stylized map (real venue
- * coordinates projected onto a CSS/SVG backdrop, no map library) paired with
- * a GlassPanel step-list narrating the live agent workflow (PRD §9.8).
- * Props-driven — a later task wires `steps`/`pins` to the live match/venue
- * routes; see `AgentProgress.demo.tsx` for a standalone mock driver.
+ * Shows projected venue coordinates beside the live agent steps.
  */
 export function AgentProgress({
   steps,
@@ -149,7 +143,7 @@ export function AgentProgress({
 
   return (
     <div className={cn("flex flex-col gap-4 md:flex-row", className)}>
-      {/* Stylized map backdrop — flat surface, NOT glass (GlassPanel is reserved for the step-list). */}
+      {/* Stylized map backdrop */}
       <div
         className="relative h-56 w-full overflow-hidden rounded-2xl border border-border bg-muted sm:h-72 md:h-80 md:flex-1"
         role="img"
@@ -201,7 +195,7 @@ export function AgentProgress({
         </AnimatePresence>
       </div>
 
-      {/* Step-list — one of the 4 sanctioned GlassPanel surfaces. */}
+      {/* One of the four sanctioned GlassPanel surfaces. */}
       <GlassPanel withTextBacking className="w-full p-4 md:w-72 md:shrink-0">
         <ol className="flex flex-col gap-3">
           {steps.map((step) => (

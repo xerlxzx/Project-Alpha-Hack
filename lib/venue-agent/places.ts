@@ -1,7 +1,5 @@
-// Server-only module: calls Google Places API (New) with the secret
-// GOOGLE_PLACES_API_KEY. Never import this into a client component —
-// the `server-only` package isn't installed in this repo (see task-3.2
-// report), so this boundary is enforced by convention, not by tooling.
+// Server-only Google Places API module. Never import it into a client
+// component because it reads GOOGLE_PLACES_API_KEY.
 
 import { PLACES_ENDPOINTS, PLACES_FIELD_MASK, getEnv } from "@/lib/config"
 

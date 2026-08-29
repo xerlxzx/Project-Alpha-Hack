@@ -3,10 +3,7 @@
 import * as React from "react";
 import { X, Import } from "lucide-react";
 
-// Canned "import" candidates for the simulated preview (PRD §9.3: for the
-// hackathon this is an interactive preview, not a live external
-// integration). Chosen to plausibly read as hobbies/interests only — never
-// relationships, conversations, health info, or other unrelated history.
+// Canned tags for the simulated context-import preview. Hobbies/interests only.
 const SIMULATED_IMPORT_TAGS = ["Trivia nights", "Weekend markets", "Photography walks", "Board game cafes"];
 
 export interface ContextImportStepProps {

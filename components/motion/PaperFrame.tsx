@@ -20,10 +20,8 @@ export interface PaperFrameProps {
 }
 
 /**
- * Presents a cream-ground illustration as a deliberate "paper" card so it reads
- * as intentional in both themes (the raw cream would otherwise glow on a dark
- * page). Rounded, bordered, on `--surface`, gently dimmed in dark mode, with an
- * optional slow float. Float is transform-only and disabled for reduced motion.
+ * Frames cream-ground illustrations on `--surface` to prevent glow in dark mode.
+ * The optional transform-only float respects reduced motion.
  */
 export function PaperFrame({
   src,
@@ -58,7 +56,7 @@ export function PaperFrame({
         sizes={sizes}
         className="h-full w-full object-cover"
       />
-      {/* Faint amber floor-glow to seat the illustration in the brand */}
+      {/* Faint amber floor glow. */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-[var(--accent)]/8 to-transparent" />
     </motion.div>
   );

@@ -1,7 +1,5 @@
 // Domain types mirroring supabase/migrations/0001_schema.sql.
-// DB columns are snake_case; these interfaces use camelCase — map field
-// names when reading rows straight from supabase-js (or alias columns in
-// the query) rather than passing raw rows through as these types.
+// Map snake_case DB columns to these camelCase fields.
 
 export type MeetupStatus = "forming" | "confirmed" | "completed";
 export type AvailabilityMode = "im_free" | "plan_ahead";
@@ -162,9 +160,7 @@ export interface Badge {
   earnedAt: string;
 }
 
-// Server-only — never send to a client response. Backs the private
-// reliability score (PRD 9.12); the `user_reliability` table has no
-// participant-readable RLS policy.
+// Server-only. The `user_reliability` table has no participant-readable RLS policy.
 export interface UserReliability {
   userId: string;
   score: number;

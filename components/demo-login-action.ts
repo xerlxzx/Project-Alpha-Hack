@@ -2,7 +2,7 @@
 
 import { getAdminSupabase } from "@/lib/supabase/server";
 
-// Seeded active user (see supabase/seed.sql) — the one the whole demo
+// Seeded active user from supabase/seed.sql. The whole demo
 // journey is walkable as, without any real university email round trip.
 const DEMO_USER_EMAIL = "alex.chen@usyd.edu.au";
 
@@ -14,13 +14,11 @@ export type DemoLoginTokenResult =
  * Mints a one-time token for the seeded demo user via the admin API, so the
  * browser client can exchange it for a real Supabase session (`verifyOtp`)
  * without an actual email round trip. The service-role key is used here,
- * server-side only, and never returned to the client — only the resulting
+ * server-side only and never returned to the client. Only the resulting
  * token hash is.
  *
  * SECURITY: this action lets anyone who can reach it authenticate as the
- * seeded demo account with zero credentials. That's intentional for the
- * hackathon build (PRD §0 explicitly allows simulated auth) so the whole
- * journey is walkable without real email, but it must not ship in a real
+ * seeded demo account with zero credentials. It must not ship in a real
  * deployment. `DISABLE_DEMO_LOGIN=true` kills it without a code change.
  */
 export async function requestDemoLoginToken(): Promise<DemoLoginTokenResult> {

@@ -1,7 +1,5 @@
-// Server-only module. Do not import from client components — it pulls in
-// `next/headers`, which throws a build error if bundled for the client.
-// (The `server-only` package isn't a project dependency and adding it is
-// out of scope for this task, so this import is the enforcement mechanism.)
+// Server-only module. Never import from client components; next/headers
+// cannot enter the client bundle.
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
@@ -26,10 +24,8 @@ export async function getServerSupabase() {
               cookieStore.set(name, value, options)
             )
           } catch {
-            // Called from a Server Component, where cookies can't be
-            // written. Safe to ignore as long as sessions get refreshed
-            // from a Server Action or Route Handler instead — there is no
-            // middleware/proxy in this repo doing that yet.
+            // Server Components cannot write cookies. Server Actions and
+            // Route Handlers refresh sessions.
           }
         },
       },
@@ -37,7 +33,7 @@ export async function getServerSupabase() {
   )
 }
 
-// Privileged admin client — bypasses RLS via the service-role key. Never
+// Privileged admin client. Bypasses RLS via the service-role key. Never
 // import this into client code or any module reachable from the browser
 // bundle.
 export function getAdminSupabase() {

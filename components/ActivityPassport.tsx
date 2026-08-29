@@ -14,13 +14,6 @@ export interface ActivityPassportProps {
   className?: string
 }
 
-/**
- * The Activity Passport stats from PRD 9.18. Flat premium surface, not
- * glass - DESIGN_DIRECTION.md reserves glass for chrome/hero surfaces only,
- * and this is a data-dense stat card. No amber here: every value stays on
- * the neutral foreground/muted-foreground tokens, since amber is reserved
- * for the ring/progress chrome (see MomentumRing).
- */
 export function ActivityPassport({
   thisWeek,
   streak,

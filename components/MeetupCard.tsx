@@ -9,14 +9,14 @@ import { cn } from "@/lib/utils";
 
 export interface MeetupCardData {
   id: string;
-  /** meetups.activity_intent — the host's stated intent, doubles as the card title. */
+  /** Host intent from meetups.activity_intent; also the card title. */
   activityIntent: string | null;
   tags: string[];
   /** Pre-formatted (e.g. "$10–$20"), or null if the host set no cost range. */
   costLabel: string | null;
   /** Pre-formatted (e.g. "Sat, 6 Sep · 4:00 pm"), computed server-side to avoid hydration drift. */
   whenLabel: string;
-  /** Human-readable area — a venue address when a recommendation exists, else a coarse coordinate fallback. */
+  /** Venue address or coarse coordinate fallback. */
   areaLabel: string;
   sizeCap: number;
   memberCount: number;
@@ -31,10 +31,8 @@ export interface MeetupCardProps {
 }
 
 /**
- * Flat premium surface per DESIGN_DIRECTION.md ("data-dense surfaces use
- * flat premium surfaces, not GlassPanel") — matches ProposalCard/GroupPreview's
- * recipe exactly. Tappable to expand in place; "Request to join" is a stub
- * (local state only, per Task 6.1 brief — full join logic is a later task).
+ * Tappable meetup card that expands in place. "Request to join" is local
+ * state only. Full join logic is a later task.
  */
 export function MeetupCard({ meetup, className }: MeetupCardProps) {
   const [expanded, setExpanded] = React.useState(false);

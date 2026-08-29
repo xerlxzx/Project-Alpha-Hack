@@ -3,11 +3,8 @@ import { NextResponse } from "next/server"
 import { assertMeetupMember, getCurrentUser } from "@/lib/current-user"
 import { getAdminSupabase } from "@/lib/supabase/server"
 
-// PRD §9.9 — the caller accepts their spot in a forming meetup; the group
-// confirms once quorum is reached. Auth is resolved from the session (with
-// the demo-user fallback in lib/current-user.ts) and the membership check
-// runs against the admin client — a client-supplied user id is never
-// trusted here.
+// Accepts the caller's spot in a forming meetup; the group confirms once quorum
+// is reached. Auth resolves from the session. User ID is never taken from the request.
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: meetupId } = await params
 
@@ -53,12 +50,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const quorum = meetup.quorum ?? 3
   let acceptedCount = members.filter((m) => m.accepted).length
 
-  // DEMO quorum simulation (PRD §18): the co-members are seeded users with no
-  // live session, so they can't accept in real time. If the caller's own
-  // acceptance still leaves the group short of quorum, mark the remaining
-  // seeded members accepted too — simulating that they said yes. Deliberate
-  // single-actor-demo shortcut, and not hidden: the response reports the full
-  // accepted count and member count so the UI shows an honest tally.
+  // Demo quorum simulation: co-members are seeded users with no live session.
+  // If the caller's acceptance leaves the group short of quorum, mark remaining
+  // seeded members accepted so the full flow is walkable solo.
   if (acceptedCount < quorum) {
     const { error: fillErr } = await supabase
       .from("meetup_members")

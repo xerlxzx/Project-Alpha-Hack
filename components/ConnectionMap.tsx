@@ -2,10 +2,7 @@ import { getCurrentUser } from "@/lib/current-user"
 import { getAdminSupabase, getServerSupabase } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
 
-// PRD §9.19 — a PRIVATE view of the activities through which the current
-// user met their friends. Nodes are friends; each is linked to "you" through
-// the meetup where the friendship formed. It is explicitly NOT a public
-// ranking of friendships — only the owning user ever sees it.
+// Private map linking the current user to friends through shared meetups.
 
 export interface ConnectionMapFriend {
   userId: string
@@ -42,10 +39,8 @@ async function loadFriendsForCurrentUser(): Promise<ConnectionMapFriend[]> {
     return []
   }
 
-  // Same client-selection rule as app/profile/page.tsx: a real session is
-  // already RLS-scoped to this user (friendships_select_participant), so the
-  // plain server client is enough; only the sessionless demo fallback needs
-  // the admin client, because RLS has no auth.uid() to match then.
+  // Authenticated sessions use owner-scoped RLS. The sessionless demo needs
+  // the admin client because RLS has no auth.uid().
   const supabase = currentUser.isDemo ? getAdminSupabase() : await getServerSupabase()
   const userId = currentUser.id
 

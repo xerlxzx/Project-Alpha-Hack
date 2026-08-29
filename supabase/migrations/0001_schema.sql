@@ -1,4 +1,4 @@
--- Momentum — initial schema (Task 1.1)
+-- Momentum initial schema (Task 1.1)
 -- 14 domain tables + a private, server-only reliability table, with RLS.
 --
 -- Privacy hard rule (PRD 9.1 / 9.11): no surname, phone number, or home/street
@@ -10,17 +10,15 @@
 --   check group membership without triggering RLS self-recursion on
 --   meetup_members (the standard Supabase pattern for many-to-many
 --   membership checks). It only ever answers a boolean "is auth.uid() a
---   member of this meetup" question — it exposes no row data itself.
+--   member of this meetup" question. It exposes no row data.
 -- - Cross-user profile reads go through the `profile_public` view, not the
 --   `profiles` table directly. The base table only grants row access to its
 --   owner; the view is the sole path by which a co-member of a CONFIRMED
 --   meetup can read the four PRD 9.11 "allowed" fields (first_name,
---   photo_url, university, course_year). The view intentionally is not
---   `security_invoker` — it runs its own explicit auth check
---   (`can_view_profile`) instead of inheriting the caller's row access,
---   which is what makes the column restriction possible.
+--   photo_url, university, course_year). The view uses `can_view_profile`
+--   instead of `security_invoker` to enforce its column restriction.
 -- - `reports` and `user_reliability` carry no participant-facing SELECT
---   policy at all (PRD 9.12 / 10) — only the service role (which bypasses
+--   policy (PRD 9.12 / 10). Only the service role, which bypasses
 --   RLS) can read them.
 
 -- ---------------------------------------------------------------------------
@@ -203,7 +201,7 @@ create table public.meetups (
 alter table public.meetups enable row level security;
 
 -- meetups_select_member_or_creator (which needs is_meetup_member) is added
--- further down, once meetup_members exists — is_meetup_member's body is
+-- further down once meetup_members exists. is_meetup_member's body is
 -- resolved against real relations at CREATE FUNCTION time for `language sql`,
 -- so it can't reference meetup_members before that table is created.
 
@@ -275,11 +273,9 @@ using ( user_id = auth.uid() )
 with check ( user_id = auth.uid() );
 
 -- ---------------------------------------------------------------------------
--- profile_public — the only cross-user read path onto profile data.
--- Deliberately NOT security_invoker: it runs as the migration role (bypasses
--- profiles' owner-only RLS) and does its own auth check below, which is what
--- lets it expose exactly PRD 9.11's four allowed columns to co-members
--- instead of the full profiles row.
+-- profile_public is the only cross-user profile read path.
+-- The view bypasses owner-only RLS and applies its own auth check to expose
+-- only the four PRD 9.11 columns.
 -- ---------------------------------------------------------------------------
 
 create or replace function public.can_view_profile(target_user_id uuid)
@@ -314,7 +310,7 @@ where public.can_view_profile(user_id);
 grant select on public.profile_public to authenticated;
 
 -- ---------------------------------------------------------------------------
--- reports — participant-invisible (PRD 10). Insert-only for the reporter;
+-- reports are participant-invisible (PRD 10). Insert-only for the reporter;
 -- no SELECT/UPDATE/DELETE policy exists for authenticated at all.
 -- ---------------------------------------------------------------------------
 
@@ -367,7 +363,7 @@ to authenticated
 using ( public.is_meetup_member(meetup_id) );
 
 -- Writes come only from the server (venue agent), via the service role,
--- which bypasses RLS — no insert/update policy for authenticated.
+-- which bypasses RLS. Authenticated users have no insert/update policy.
 
 -- ---------------------------------------------------------------------------
 -- chat_messages
@@ -396,8 +392,8 @@ to authenticated
 with check ( user_id = auth.uid() and public.is_meetup_member(meetup_id) );
 
 -- ---------------------------------------------------------------------------
--- feedback — one-directional; only the author can read their own submission
--- (the person the feedback is about never sees it — no public ratings).
+-- feedback is one-directional. Only the author can read their submission;
+-- the subject never sees it.
 -- ---------------------------------------------------------------------------
 
 create table public.feedback (
@@ -428,7 +424,7 @@ to authenticated
 with check ( from_user = auth.uid() );
 
 -- ---------------------------------------------------------------------------
--- friendships — created server-side when both sides pick "meet again";
+-- friendships are created server-side when both sides pick "meet again";
 -- participants can only read, not write.
 -- ---------------------------------------------------------------------------
 
@@ -450,7 +446,7 @@ to authenticated
 using ( auth.uid() = user_a or auth.uid() = user_b );
 
 -- ---------------------------------------------------------------------------
--- blocks — visible only to the blocker, not the blocked user.
+-- blocks are visible only to the blocker.
 -- ---------------------------------------------------------------------------
 
 create table public.blocks (
@@ -480,7 +476,7 @@ to authenticated
 using ( blocker = auth.uid() );
 
 -- ---------------------------------------------------------------------------
--- momentum_events — computed server-side from confirmed attendance; readable
+-- momentum_events are computed from confirmed attendance and readable
 -- by the owning user.
 -- ---------------------------------------------------------------------------
 
@@ -504,7 +500,7 @@ to authenticated
 using ( user_id = auth.uid() );
 
 -- ---------------------------------------------------------------------------
--- badges — awarded server-side; readable by the owning user.
+-- badges are awarded server-side and readable by the owner.
 -- ---------------------------------------------------------------------------
 
 create table public.badges (
@@ -525,7 +521,7 @@ to authenticated
 using ( user_id = auth.uid() );
 
 -- ---------------------------------------------------------------------------
--- user_reliability — private reliability score (PRD 9.12). No policy of any
+-- user_reliability stores the private score (PRD 9.12). No policy of any
 -- kind: RLS is enabled with zero grants to anon/authenticated, so this table
 -- is reachable only by the service role. Never expose to participants.
 -- ---------------------------------------------------------------------------

@@ -11,9 +11,7 @@ import { Input } from "@/components/ui/input";
 import { PrimaryCTA } from "@/components/motion/PrimaryCTA";
 import { spring } from "@/components/motion/tokens";
 
-// Simulated per PRD §0 / §9.1 — the prototype validates domain *format*
-// only and shows a verification badge; production identity verification is
-// explicitly out of scope for the hackathon build.
+// Validates university email domain format only; shows a verification badge.
 const UNIVERSITY_EMAIL_RE = /^[^\s@]+@([a-z0-9-]+\.)*edu\.au$/i;
 
 export type AuthMode = "signin" | "signup";
@@ -24,9 +22,8 @@ export interface AuthPanelProps {
 }
 
 /**
- * Real Supabase Auth email+password flow (browser client) with a simulated
- * university-domain check. Routes to /onboarding for a brand-new user (no
- * profiles row yet) or /home for a returning one, once a session exists.
+ * Supabase email/password flow with a simulated university-domain check.
+ * Routes new users to /onboarding and returning users to /home.
  */
 export function AuthPanel({ className, defaultMode = "signin" }: AuthPanelProps) {
   const router = useRouter();

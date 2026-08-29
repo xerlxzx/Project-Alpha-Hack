@@ -2,7 +2,7 @@
 // Action's FormData body. Next's default Server Action body limit is 1MB
 // (node_modules/next/dist/docs/.../serverActions.md) and next.config.ts is
 // out of scope for this task, so staying well under that ceiling has to
-// happen here — this also keeps uploads fast for the 60-second target.
+// happen here. This also keeps uploads fast for the 60-second target.
 const MAX_DIMENSION = 512;
 const JPEG_QUALITY = 0.82;
 

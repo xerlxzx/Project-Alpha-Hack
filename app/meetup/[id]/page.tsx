@@ -20,7 +20,7 @@ import { DemoTimeSkip } from "@/components/DemoTimeSkip"
 // Same convention as app/layout.tsx, app/profile/page.tsx, and
 // app/onboarding/actions.ts: fall back to the seeded active demo user when
 // there's no real Supabase Auth session yet (Task 4.1's sign-in/demo-login
-// flow hasn't landed). Reads fall back to the admin client for that case —
+// flow hasn't landed). Reads fall back to the admin client for that case.
 // note `profile_public` itself calls `auth.uid()` internally, so it
 // returns zero rows with no session regardless of which client runs the
 // query (same failure mode documented in app/profile/page.tsx); the
@@ -255,7 +255,7 @@ function PinnedActivityCard({
           label="Report"
           icon={<UserRoundX className="size-3.5" aria-hidden />}
           title="Report a concern"
-          description="Reports are never visible to other participants (PRD §10). Not wired up yet in this build — placeholder for a later task."
+          description="Reports are never visible to other participants. Not wired up yet in this build."
         />
       </div>
     </div>

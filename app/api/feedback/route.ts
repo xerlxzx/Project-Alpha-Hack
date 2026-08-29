@@ -8,7 +8,7 @@ import { assertMeetupMember, getCurrentUser, type CurrentUser } from "@/lib/curr
 import { getAdminSupabase, getServerSupabase } from "@/lib/supabase/server"
 
 // The seeded demo IDs are valid Postgres UUID values with a zero version
-// nibble, which Zod's RFC-version-aware `.uuid()` intentionally rejects.
+// nibble, which Zod's RFC-version-aware `.uuid()` rejects.
 const DatabaseUuidSchema = z
   .string()
   .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)

@@ -32,11 +32,6 @@ export interface ProposalCardProps {
   className?: string;
 }
 
-/**
- * The recommended activity+venue. Flat premium surface per DESIGN_DIRECTION.md
- * ("data-dense surfaces use flat premium surfaces, not GlassPanel") — this
- * card is text/chip-dense, so it never reaches for the glass treatment.
- */
 export function ProposalCard({
   activityTitle,
   venueName,

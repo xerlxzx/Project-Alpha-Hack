@@ -44,11 +44,9 @@ interface NavState {
   activeMeetupStatus: "forming" | "confirmed" | null;
 }
 
-// Hybrid nav (DESIGN_DIRECTION.md "Navigation"): the bottom tab bar appears
-// only once a user has an active meetup or a completed one in their history.
-// A simple membership query decides it — wrapped in try/catch so a missing
-// Supabase session/env or an unapplied migration degrades to the new/idle
-// (no tab bar) experience instead of crashing the whole app shell.
+// Shows the bottom tab bar once a user has an active or completed meetup.
+// Wrapped in try/catch so a missing session or unapplied migration degrades
+// to the no-tab-bar experience instead of crashing the app shell.
 async function getNavState(): Promise<NavState> {
   try {
     const supabase = await getServerSupabase();

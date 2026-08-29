@@ -21,13 +21,7 @@ export interface MomentumRingProps {
   className?: string
 }
 
-/**
- * Apple Activity-style closing ring for weekly momentum progress
- * (DESIGN_DIRECTION.md "Momentum progress visual"). The ring itself is the
- * one place progress uses the amber accent as a stroke color - the center
- * label and streak text stay on the neutral foreground token so nothing
- * here relies on text-on-amber contrast.
- */
+/** Apple Activity-style closing ring for weekly momentum progress. */
 export function MomentumRing({
   completed,
   goal,

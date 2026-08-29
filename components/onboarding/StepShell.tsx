@@ -17,12 +17,7 @@ export interface StepShellProps {
   footerExtra?: React.ReactNode;
 }
 
-/**
- * Flat premium surface for form steps — GlassPanel is reserved for chrome/
- * hero surfaces only (see GlassPanel.tsx docstring), so onboarding cards use
- * the plain `bg-card` surface instead. One dominant amber action (PrimaryCTA)
- * per step, per DESIGN_DIRECTION.md.
- */
+/** Wrapper for onboarding form steps. One PrimaryCTA action per step. */
 export function StepShell({
   title,
   description,

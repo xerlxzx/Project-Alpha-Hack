@@ -4,11 +4,9 @@ import { z } from "zod"
 import { assertMeetupMember, getCurrentUser } from "@/lib/current-user"
 import { getAdminSupabase } from "@/lib/supabase/server"
 
-// PRD §16 — demo-only mechanism to jump a confirmed meetup to its "outcome"
-// beat without waiting real time, so post-event feedback (Task 5.1) becomes
-// available during a 3-minute pitch. Member-authorized like every other
-// meetup-scoped route; the meetup id comes from the body but the caller
-// identity never does.
+// Demo-only: jumps a confirmed meetup to its outcome beat without waiting real
+// time, making post-event feedback available during a short demo. Caller
+// identity is resolved from the session, not the request body.
 const RequestBodySchema = z.object({ meetupId: z.string().min(1) })
 
 export async function POST(request: Request) {
@@ -58,7 +56,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "meetup_not_confirmed" }, { status: 409 })
   }
 
-  // There's no `completed_at` column on `meetups` (see 0001_schema.sql) —
+  // `meetups` has no `completed_at` column (see 0001_schema.sql).
   // the authoritative completion time is the `momentum_events.completed_at`
   // written by the feedback step. Here we also pull a future `scheduled_at`
   // back to now so the meetup reads as having just happened.

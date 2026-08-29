@@ -25,7 +25,7 @@ export type SendChatMessageResult =
 
 /**
  * Persists a chat message for the active user. With a real session, this
- * runs through `getServerSupabase()` — the `chat_messages_insert_member`
+ * runs through `getServerSupabase()`. The `chat_messages_insert_member`
  * RLS policy (0001_schema.sql) enforces `user_id = auth.uid() AND
  * is_meetup_member(meetup_id)` at the database layer regardless of what
  * this function does. Only when there's no session yet do we fall back to

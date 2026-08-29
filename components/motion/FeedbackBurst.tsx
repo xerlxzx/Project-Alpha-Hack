@@ -42,8 +42,7 @@ export interface FeedbackBurstProps {
 }
 
 /**
- * The reward animation for confirming an action — accepting a plan, sending
- * feedback, closing the ring. A checkmark springs in over expanding amber
+ * Reward animation for confirmation. A checkmark springs in over expanding amber
  * shockwaves while categorical confetti bursts outward. Render it inside a
  * `relative` container; it fills the parent and ignores pointer events.
  *

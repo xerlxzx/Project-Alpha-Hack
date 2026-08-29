@@ -3,9 +3,7 @@ import { z } from "zod"
 import { getCurrentUser } from "@/lib/current-user"
 import { getAdminSupabase } from "@/lib/supabase/server"
 
-// PRD §9.16 / §10 — a participant can block another participant. The blocker
-// is always the session user (never client-supplied); the body only names
-// who is being blocked.
+// Blocks a participant. The blocker is the session user, never client-supplied.
 const BlockRequestSchema = z.object({
   blocked: z.string().min(1),
 })

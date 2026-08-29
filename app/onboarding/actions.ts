@@ -17,10 +17,10 @@ const TagsSchema = z.object({
 
 /**
  * The client to write profile/preferences data with, for a user already
- * resolved via getCurrentUser() — never from client-supplied input. A real
+ * resolved via getCurrentUser(), never from client-supplied input. A real
  * session uses the RLS-enforced server client (auth.uid() = resolved id, so
  * the owner-only policies pass); the demo identity has no real session, so
- * RLS would reject it — the admin client is the documented exception for
+ * RLS would reject it. The admin client handles
  * that path (see lib/current-user.ts).
  */
 async function getWriteClient(user: CurrentUser) {
@@ -53,10 +53,8 @@ function buildTagPrompt(freeText: string): string {
 }
 
 /**
- * Gemini free-text → tags (PRD §9.2). One retry on failure, venue-agent
- * style; the caller (tag-review step) always has an editable/removable list
- * so a total failure just means the user starts from an empty tag set
- * instead of the flow dead-ending.
+ * Calls Gemini to extract tags from free text. One retry on failure.
+ * A total failure leaves the tag list empty rather than blocking the flow.
  */
 export async function extractTags(
   freeText: string
@@ -99,7 +97,7 @@ async function ensurePhotoBucketExists(): Promise<void> {
     public: true,
     fileSizeLimit: "2MB",
   });
-  // "already exists" is expected on every call after the first — the bucket
+  // "already exists" is expected on every call after the first. The bucket
   // check-then-create isn't atomic, so this is the only reliable way to make
   // ensure idempotent without a dedicated migration (out of scope: this
   // session owns app/onboarding only).
@@ -131,7 +129,7 @@ export async function uploadProfilePhoto(
   try {
     await ensurePhotoBucketExists();
     // Storage has no RLS policies defined (see supabase/migrations) for
-    // either identity, so the admin client is required regardless — only
+    // either identity, so the admin client is required. Only
     // the path (derived from the resolved, non-spoofable user id) changes.
     const admin = getAdminSupabase();
     const path = `${user.id}/${Date.now()}.jpg`;
@@ -185,9 +183,9 @@ export async function saveOnboarding(
   try {
     const client = await getWriteClient(user);
 
-    // user.id is the only source of identity here — resolved server-side by
+    // user.id is the only source of identity here, resolved server-side by
     // getCurrentUser() from the session cookie (or the demo fallback), never
-    // from payload/client input — so this can never write to another
+    // from payload/client input. This can never write to another
     // caller's row.
     const { error: profileError } = await client
       .from("profiles")

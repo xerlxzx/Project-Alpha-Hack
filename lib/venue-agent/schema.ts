@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-// PRD §9.8: structured plan Gemini returns to drive the Places search.
+// Structured plan Gemini returns to drive the Places search.
 export const SearchPlanSchema = z.object({
   textQuery: z.string(),
   keywords: z.array(z.string()),
@@ -12,7 +12,7 @@ export const SearchPlanSchema = z.object({
 
 export type SearchPlan = z.infer<typeof SearchPlanSchema>
 
-// PRD §17: Agent contract JSON — field names and types must match exactly.
+// Venue-agent recommendation contract.
 export const RecommendationSchema = z.object({
   activityTitle: z.string(),
   placeId: z.string(),
