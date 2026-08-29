@@ -90,7 +90,7 @@ export function ContextImportStep({ optedIn, tags, onImport, onOptOut, onRemoveT
     return (
       <div className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          Review what was imported. Remove anything you don&apos;t want — nothing is shared with other
+          Review what was imported. Remove anything you don&apos;t want. Nothing is shared with other
           members, and you can revoke it all.
         </p>
         <div className="flex flex-wrap gap-3">

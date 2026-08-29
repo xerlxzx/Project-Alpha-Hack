@@ -19,7 +19,7 @@ const PANEL =
   "rounded-2xl bg-card ring-1 ring-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),inset_0_-1px_0_rgba(255,255,255,0.02),0_2px_6px_rgba(0,0,0,0.55),0_14px_32px_-24px_rgba(255,255,255,0.08)]"
 
 // Wraps every return path so the whole route shares the onboarding theme
-// (pure-black ground, amber accent) — not just the confirmed-meetup view.
+// (pure-black ground, monochrome accent), not just the confirmed-meetup view.
 function Shell({ children }: { children: ReactNode }) {
   return <div className="onboarding-theme min-h-dvh bg-black">{children}</div>
 }
@@ -211,7 +211,7 @@ export default async function MeetupPage({
         reason={recommendation?.reason ?? null}
       />
 
-      <section className="flex flex-col gap-3">
+      <section id="group-chat" className="flex flex-col gap-3 scroll-mt-24">
         <h2 className="font-heading text-lg font-semibold text-foreground">Group chat</h2>
         <ChatThread
           meetupId={id}

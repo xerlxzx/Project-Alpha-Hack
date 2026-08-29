@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 /**
  * History-aware back control. Returns to wherever the user came from (home,
  * a match, a notification) rather than a hardcoded route. Falls back to /home
- * when there's no in-app history to pop — e.g. the page was opened directly.
+ * when there's no in-app history to pop, for example when the page was opened directly.
  */
 export function BackButton({ className }: { className?: string }) {
   const router = useRouter();

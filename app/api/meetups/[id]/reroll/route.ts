@@ -41,7 +41,7 @@ function buildRerollRankPrompt(candidates: PlaceCandidate[], group: GroupProfile
   }))
 
   return [
-    "The group used their one reroll — they want a DIFFERENT venue than last time.",
+    "The group used their one reroll. They want a DIFFERENT venue than last time.",
     "The candidate list below has already had the previous recommendation removed, so just pick the best remaining fit.",
     `Group interests: ${JSON.stringify(group.interests)}`,
     `Candidates: ${JSON.stringify(summaries)}`,

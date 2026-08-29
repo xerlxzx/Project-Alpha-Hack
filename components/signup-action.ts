@@ -50,7 +50,7 @@ export async function requestSignUpToken(
       // arbitrary password; route them to sign in instead.
       const message = createError.message.toLowerCase();
       if (message.includes("already") || message.includes("registered")) {
-        return { ok: false, error: "That email already has an account — sign in instead." };
+        return { ok: false, error: "That email already has an account. Sign in instead." };
       }
       return { ok: false, error: createError.message };
     }

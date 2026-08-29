@@ -4,59 +4,50 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Home, Users, User as UserIcon } from "lucide-react";
+import { Home, MessageCircle, Users, User as UserIcon } from "lucide-react";
 
 import { GlassPanel } from "@/components/GlassPanel";
 import { LiquidGlassFilter, useRefractionSupported } from "@/components/LiquidGlass";
 import { cn } from "@/lib/utils";
 
-export interface BottomTabBarProps {
-  /** Links to the user's active meetup when present. */
-  activeMeetupId?: string | null;
-  activeMeetupStatus?: "forming" | "confirmed" | null;
-}
-
 interface TabDef {
   href: string;
-  match: string;
+  /** Path prefixes that count as this tab being active. */
+  match: string[];
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
 const FILTER_ID = "liquid-glass-tab";
 
+// Meetup/Messages route through app/(app)/meetup and app/(app)/messages,
+// which redirect to the active meetup (or a sensible fallback) server-side.
+// /match carries the forming-meetup flow, so it counts toward the Meetup tab.
+const TABS: TabDef[] = [
+  { href: "/home", match: ["/home"], label: "Home", icon: Home },
+  { href: "/meetup", match: ["/meetup", "/match"], label: "Meetup", icon: Users },
+  { href: "/messages", match: ["/messages"], label: "Messages", icon: MessageCircle },
+  { href: "/profile", match: ["/profile"], label: "Profile", icon: UserIcon },
+];
+
 /**
- * Bottom nav shown after the user has an active or past meetup.
+ * Bottom nav, present on every authenticated app screen.
  *
  * The selected tab is an iOS 26 "Liquid Glass" capsule that shares-element
  * animates between tabs (`layoutId`) and refracts the content behind it. The
  * refraction is a Chromium-only backdrop SVG filter; other engines fall back to
  * the frosted `backdrop-blur` capsule, which still reads as glass.
  */
-export function BottomTabBar({ activeMeetupId, activeMeetupStatus }: BottomTabBarProps) {
+export function BottomTabBar() {
   const pathname = usePathname();
   const reduce = useReducedMotion();
   const refractionSupported = useRefractionSupported();
 
-  const tabs: TabDef[] = [
-    { href: "/home", match: "/home", label: "Home", icon: Home },
-    ...(activeMeetupId
-      ? [
-          {
-            href:
-              activeMeetupStatus === "confirmed"
-                ? `/meetup/${activeMeetupId}`
-                : `/match?meetupId=${activeMeetupId}`,
-            match: activeMeetupStatus === "confirmed" ? `/meetup/${activeMeetupId}` : "/match",
-            label: "Meetup",
-            icon: Users,
-          },
-        ]
-      : []),
-    { href: "/profile", match: "/profile", label: "Profile", icon: UserIcon },
-  ];
+  const tabs = TABS;
 
-  const activeIndex = tabs.findIndex((tab) => pathname?.startsWith(tab.match));
+  const activeIndex = tabs.findIndex((tab) =>
+    tab.match.some((prefix) => pathname?.startsWith(prefix)),
+  );
 
   // Measure the selected cell so the refraction map is baked at its real size.
   const [dims, setDims] = React.useState({ w: 0, h: 0 });

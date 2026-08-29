@@ -55,3 +55,45 @@ export async function assertMeetupMember(userId: string, meetupId: string): Prom
 
   return data !== null
 }
+
+export interface ActiveMeetup {
+  id: string
+  status: "forming" | "confirmed"
+}
+
+/**
+ * The user's current forming/confirmed meetup, if any (ignores completed
+ * ones). Used to route the nav bar's Meetup/Messages tabs. Wrapped so a
+ * missing session or unapplied migration degrades to "no active meetup"
+ * instead of crashing the tab bar.
+ */
+export async function getActiveMeetup(userId: string): Promise<ActiveMeetup | null> {
+  try {
+    const supabase = getAdminSupabase()
+    const { data, error } = await supabase
+      .from("meetup_members")
+      .select("meetup_id, meetups(status)")
+      .eq("user_id", userId)
+      .eq("accepted", true)
+
+    if (error || !data) {
+      return null
+    }
+
+    type Row = { meetup_id: string; meetups: { status: string } | { status: string }[] | null }
+    const rows = data as unknown as Row[]
+    const statusOf = (row: Row) =>
+      Array.isArray(row.meetups) ? row.meetups[0]?.status : row.meetups?.status
+
+    const active = rows.find((row) => {
+      const status = statusOf(row)
+      return status === "confirmed" || status === "forming"
+    })
+    if (!active) return null
+
+    const status = statusOf(active)
+    return { id: active.meetup_id, status: status === "confirmed" ? "confirmed" : "forming" }
+  } catch {
+    return null
+  }
+}
