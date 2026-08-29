@@ -41,6 +41,7 @@ export interface RequestOverrides {
   budgetAud?: number
   socialEnergy?: string
   availability?: AvailabilityOverride[]
+  proposedActivity?: string | null
 }
 
 export interface MatchInputs {
@@ -135,9 +136,7 @@ export function accessibilityCompatible(
   activeNeed: string | null | undefined,
   candidateNeed: string | null | undefined
 ): boolean {
-  const required = normalisePreference(activeNeed)
-  if (!required) return true
-  return normalisePreference(candidateNeed) === required
+  return normalisePreference(activeNeed) === normalisePreference(candidateNeed)
 }
 
 const EXCLUDED_ACTIVITY_PATTERNS = [
@@ -160,6 +159,20 @@ export function activitySignalsAllowed(signals: string[]): boolean {
     const normalised = signal.trim().toLowerCase()
     return !EXCLUDED_ACTIVITY_PATTERNS.some((pattern) => pattern.test(normalised))
   })
+}
+
+export function deriveCandidateGateFlags(
+  activePreferences: Pick<Preferences, "accessibility">,
+  candidatePreferences: Pick<Preferences, "accessibility">,
+  proposedActivity?: string | null
+): { accessibilityMet: boolean; activityAllowed: boolean } {
+  return {
+    accessibilityMet: accessibilityCompatible(
+      activePreferences.accessibility,
+      candidatePreferences.accessibility
+    ),
+    activityAllowed: activitySignalsAllowed(proposedActivity ? [proposedActivity] : []),
+  }
 }
 
 function toAvailabilityWindow(row: AvailabilityWindowRow): AvailabilityWindow {
@@ -337,6 +350,11 @@ export async function loadMatchInputs(
       const userPreferences = preferences.get(userId)
       const userRow = users.find((u) => u.id === userId)
       if (!profile || !userPreferences || !userRow) return null
+      const gateFlags = deriveCandidateGateFlags(
+        activePreferences,
+        userPreferences,
+        overrides?.proposedActivity
+      )
       const member: MatchPoolMember = {
         ...profile,
         ...userPreferences,
@@ -344,8 +362,7 @@ export async function loadMatchInputs(
         verified: userRow.is_verified,
         ageOk: userRow.is_over_18,
         safetyProhibited: safetyProhibitedIds.has(userId),
-        accessibilityMet: accessibilityCompatible(activePreferences.accessibility, userPreferences.accessibility),
-        activityAllowed: activitySignalsAllowed([...userPreferences.hobbies, ...userPreferences.interests]),
+        ...gateFlags,
         availability: availabilityByUser.get(userId) ?? [],
         priorFeedback: priorFeedbackById.get(userId),
         reliability: reliabilityById.get(userId),
