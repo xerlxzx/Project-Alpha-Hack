@@ -58,6 +58,7 @@ export function DemoLogin({ className }: DemoLoginProps) {
         type="button"
         variant="outline"
         size="lg"
+        data-landing-demo=""
         onClick={handleClick}
         disabled={pending}
         className="gap-2 rounded-full"
