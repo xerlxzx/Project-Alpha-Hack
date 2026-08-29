@@ -1,6 +1,7 @@
--- Momentum — demo seed data (Task 1.2)
--- Builds on supabase/migrations/0001_schema.sql (Task 1.1). Column-consistent
--- with that migration; run this AFTER it, with a service-role/superuser
+-- Momentum — demo seed data (Task 1.2, extended by Task 1.4)
+-- Builds on supabase/migrations/0001_schema.sql AND 0002_location_and_meetup_fields.sql
+-- (area_lat/area_lng on preferences; activity_intent/tags/cost_min/cost_max
+-- on meetups) — run this AFTER both, with a service-role/superuser
 -- connection (it inserts into auth.users/auth.identities directly, and the
 -- service role bypasses RLS on every public.* table so the inserts below
 -- don't need to satisfy any policy).
@@ -122,30 +123,42 @@ on conflict (user_id) do nothing;
 -- Overlap with the active user's basketball / food exploration / casual
 -- outdoor (users 02-05 only — commented per row); 06-12 are deliberately
 -- non-overlapping to keep the demo pool varied rather than uniform.
+-- area_lat/area_lng (added by 0002) are real approximate coordinates spread
+-- around inner-Sydney, a few km apart — not a repeated campus-centroid proxy
+-- — so travel-distance matching (PRD §9.6) has real variation to work with.
+-- The active user sits at USyd Camperdown; distances below are approximate
+-- straight-line km from there, roughly consistent with each user's
+-- travel_km tolerance (not exact — real variation, not a formula).
 -- ---------------------------------------------------------------------------
 
 insert into public.preferences (
   user_id, travel_km, budget_aud, hobbies, interests, gender_pref, language_pref,
-  accessibility, social_energy, weekly_goal
+  accessibility, social_energy, weekly_goal, area_lat, area_lng
 ) values
-  -- active user
-  ('00000000-0000-0000-0001-000000000001', 10, 30, ARRAY['basketball','hiking','photography'], ARRAY['basketball','food exploration','casual outdoor'], 'any', 'English', null, 'medium', 2),
-  -- overlap: basketball + food exploration
-  ('00000000-0000-0000-0001-000000000002', 8, 35, ARRAY['basketball','dancing'], ARRAY['basketball','food exploration','live music'], 'any', 'English', null, 'high', 3),
-  -- overlap: food exploration + casual outdoor
-  ('00000000-0000-0000-0001-000000000003', 15, 25, ARRAY['hiking','cooking'], ARRAY['food exploration','casual outdoor','hiking'], 'any', 'English', null, 'medium', 1),
-  -- overlap: basketball + casual outdoor
-  ('00000000-0000-0000-0001-000000000004', 12, 20, ARRAY['basketball','reading'], ARRAY['basketball','casual outdoor','board games'], 'women', 'English, Hindi', null, 'medium', 2),
-  -- overlap: food exploration only
-  ('00000000-0000-0000-0001-000000000005', 6, 40, ARRAY['cooking','sketching'], ARRAY['food exploration','coffee culture','art'], 'any', 'English', null, 'low', 1),
-  -- no overlap — different interest cluster
-  ('00000000-0000-0000-0001-000000000006', 5, 15, ARRAY['chess','debate'], ARRAY['board games','trivia','study groups'], 'any', 'English, Vietnamese', null, 'low', 1),
-  ('00000000-0000-0000-0001-000000000007', 20, 45, ARRAY['yoga','running'], ARRAY['hiking','yoga','wellness'], 'women', 'English, Korean', null, 'medium', 3),
-  ('00000000-0000-0000-0001-000000000008', 10, 50, ARRAY['guitar','vinyl collecting'], ARRAY['live music','gigs','coffee culture'], 'any', 'English', null, 'high', 2),
-  ('00000000-0000-0000-0001-000000000009', 7, 20, ARRAY['gaming','drawing'], ARRAY['gaming','board games','anime'], 'women', 'English, Bengali', 'wheelchair access needed', 'low', 1),
-  ('00000000-0000-0000-0001-000000000010', 15, 30, ARRAY['gym','football'], ARRAY['gym','sports','fitness'], 'any', 'English, Spanish', null, 'high', 4),
-  ('00000000-0000-0000-0001-000000000011', 8, 25, ARRAY['photography','baking'], ARRAY['coffee culture','study groups','photography'], 'any', 'English, Mandarin', null, 'medium', 2),
-  ('00000000-0000-0000-0001-000000000012', 25, 20, ARRAY['hiking','stargazing'], ARRAY['hiking','astronomy','board games'], 'men', 'English', null, 'low', 1)
+  -- active user — USyd Camperdown (0 km, the reference point)
+  ('00000000-0000-0000-0001-000000000001', 10, 30, ARRAY['basketball','hiking','photography'], ARRAY['basketball','food exploration','casual outdoor'], 'any', 'English', null, 'medium', 2, -33.8886, 151.1873),
+  -- overlap: basketball + food exploration — Redfern (~1.5 km)
+  ('00000000-0000-0000-0001-000000000002', 8, 35, ARRAY['basketball','dancing'], ARRAY['basketball','food exploration','live music'], 'any', 'English', null, 'high', 3, -33.8930, 151.2000),
+  -- overlap: food exploration + casual outdoor — Kensington, near UNSW (~5 km)
+  ('00000000-0000-0000-0001-000000000003', 15, 25, ARRAY['hiking','cooking'], ARRAY['food exploration','casual outdoor','hiking'], 'any', 'English', null, 'medium', 1, -33.9173, 151.2313),
+  -- overlap: basketball + casual outdoor — Newtown (~1.5 km)
+  ('00000000-0000-0000-0001-000000000004', 12, 20, ARRAY['basketball','reading'], ARRAY['basketball','casual outdoor','board games'], 'women', 'English, Hindi', null, 'medium', 2, -33.8983, 151.1784),
+  -- overlap: food exploration only — Ultimo, near UTS (~2 km)
+  ('00000000-0000-0000-0001-000000000005', 6, 40, ARRAY['cooking','sketching'], ARRAY['food exploration','coffee culture','art'], 'any', 'English', null, 'low', 1, -33.8830, 151.2005),
+  -- no overlap — Glebe (~1 km)
+  ('00000000-0000-0000-0001-000000000006', 5, 15, ARRAY['chess','debate'], ARRAY['board games','trivia','study groups'], 'any', 'English, Vietnamese', null, 'low', 1, -33.8799, 151.1852),
+  -- Kensington, near UNSW/hospital (~5.5 km)
+  ('00000000-0000-0000-0001-000000000007', 20, 45, ARRAY['yoga','running'], ARRAY['hiking','yoga','wellness'], 'women', 'English, Korean', null, 'medium', 3, -33.9200, 151.2280),
+  -- Chippendale (~1 km)
+  ('00000000-0000-0000-0001-000000000008', 10, 50, ARRAY['guitar','vinyl collecting'], ARRAY['live music','gigs','coffee culture'], 'any', 'English', null, 'high', 2, -33.8850, 151.1975),
+  -- Ultimo (~2 km)
+  ('00000000-0000-0000-0001-000000000009', 7, 20, ARRAY['gaming','drawing'], ARRAY['gaming','board games','anime'], 'women', 'English, Bengali', 'wheelchair access needed', 'low', 1, -33.8820, 151.1990),
+  -- Kensington, near UNSW (~5 km)
+  ('00000000-0000-0000-0001-000000000010', 15, 30, ARRAY['gym','football'], ARRAY['gym','sports','fitness'], 'any', 'English, Spanish', null, 'high', 4, -33.9150, 151.2250),
+  -- Surry Hills (~2.3 km)
+  ('00000000-0000-0000-0001-000000000011', 8, 25, ARRAY['photography','baking'], ARRAY['coffee culture','study groups','photography'], 'any', 'English, Mandarin', null, 'medium', 2, -33.8845, 151.2110),
+  -- Coogee — farthest out (~7 km), matches his higher travel tolerance
+  ('00000000-0000-0000-0001-000000000012', 25, 20, ARRAY['hiking','stargazing'], ARRAY['hiking','astronomy','board games'], 'men', 'English', null, 'low', 1, -33.9205, 151.2544)
 on conflict (user_id) do nothing;
 
 -- ---------------------------------------------------------------------------
@@ -195,12 +208,19 @@ on conflict (id) do nothing;
 -- 03-05 user-created ("cards"), each forming, each hosted by a different user
 -- ---------------------------------------------------------------------------
 
-insert into public.meetups (id, status, quorum, size_cap, area_lat, area_lng, scheduled_at, created_by) values
-  ('00000000-0000-0000-0003-000000000001', 'confirmed', 3, 6, -33.8886, 151.1873, now() + interval '3 hours', null),
-  ('00000000-0000-0000-0003-000000000002', 'completed', 3, 6, -33.8950, 151.1795, now() - interval '10 days', null),
-  ('00000000-0000-0000-0003-000000000003', 'forming',   3, 5, -33.8845, 151.1925, now() + interval '2 days', '00000000-0000-0000-0001-000000000006'),
-  ('00000000-0000-0000-0003-000000000004', 'forming',   3, 6, -33.8836, 151.1957, now() + interval '4 days', '00000000-0000-0000-0001-000000000008'),
-  ('00000000-0000-0000-0003-000000000005', 'forming',   3, 4, -33.8886, 151.1873, now() + interval '6 days', '00000000-0000-0000-0001-000000000011')
+-- activity_intent/tags/cost_min/cost_max (added by 0002) are only meaningful
+-- for the user-created cards (03-05, PRD §9.14); the system-generated
+-- meetups (01-02) leave them null — their "intent" is the matcher's, not a
+-- host's, and it's already captured by their activity_recommendations row.
+insert into public.meetups (
+  id, status, quorum, size_cap, area_lat, area_lng, scheduled_at, created_by,
+  activity_intent, tags, cost_min, cost_max
+) values
+  ('00000000-0000-0000-0003-000000000001', 'confirmed', 3, 6, -33.8886, 151.1873, now() + interval '3 hours', null, null, null, null, null),
+  ('00000000-0000-0000-0003-000000000002', 'completed', 3, 6, -33.8950, 151.1795, now() - interval '10 days', null, null, null, null, null),
+  ('00000000-0000-0000-0003-000000000003', 'forming',   3, 5, -33.8845, 151.1925, now() + interval '2 days', '00000000-0000-0000-0001-000000000006', 'Board game café night — bring your competitive spirit', ARRAY['board games','trivia'], 10, 20),
+  ('00000000-0000-0000-0003-000000000004', 'forming',   3, 6, -33.8836, 151.1957, now() + interval '4 days', '00000000-0000-0000-0001-000000000008', 'Catch a local band at The Lansdowne, drinks optional', ARRAY['live music','gigs'], 30, 45),
+  ('00000000-0000-0000-0003-000000000005', 'forming',   3, 4, -33.8886, 151.1873, now() + interval '6 days', '00000000-0000-0000-0001-000000000011', 'Quiet coffee + study session before finals', ARRAY['coffee culture','study groups'], 10, 20)
 on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
