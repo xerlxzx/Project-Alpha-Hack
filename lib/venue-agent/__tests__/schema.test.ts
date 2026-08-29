@@ -45,6 +45,13 @@ describe("RecommendationSchema", () => {
     expect(result.success).toBe(false)
   })
 
+  it("accepts null when Places has no factual AUD cost", () => {
+    const result = RecommendationSchema.safeParse(
+      makeRecommendation({ estimatedCostAud: null })
+    )
+    expect(result.success).toBe(true)
+  })
+
   it("fails when confidence is outside 0..1", () => {
     const result = RecommendationSchema.safeParse(makeRecommendation({ confidence: 1.5 }))
     expect(result.success).toBe(false)

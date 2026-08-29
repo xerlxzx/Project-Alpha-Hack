@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { runVenueAgent, type AgentDeps, type GroupProfile } from "@/lib/venue-agent/agent"
 import { FALLBACK_RECOMMENDATION } from "@/lib/venue-agent/fallback"
-import type { PlaceCandidate } from "@/lib/venue-agent/places"
+import { placeDetails, placesTextSearch, type PlaceCandidate } from "@/lib/venue-agent/places"
 
 const group: GroupProfile = {
   interests: ["basketball", "food"],
@@ -24,6 +24,8 @@ function makeCandidate(overrides: Partial<PlaceCandidate> = {}): PlaceCandidate 
     website: "https://real-sports.example",
     mapsUrl: "https://maps.google.com/?cid=real-place-1",
     accessibility: null,
+    businessStatus: "OPERATIONAL",
+    photoUrl: null,
     ...overrides,
   }
 }
@@ -63,20 +65,18 @@ describe("runVenueAgent", () => {
     expect(result.recommendation.placeId).toBe(FALLBACK_RECOMMENDATION.placeId)
   })
 
-  it("flags overBudgetPreference when estimated cost is $5-$10 over budget but still returns it", async () => {
-    const overBudgetCandidate = makeCandidate({ priceLevel: "PRICE_LEVEL_MODERATE" })
+  it("returns unknown cost instead of inventing AUD from a Places price level", async () => {
+    const candidateWithoutAudPrice = makeCandidate({ priceLevel: "PRICE_LEVEL_MODERATE" })
     const deps = makeDeps({
-      searchPlaces: vi.fn().mockResolvedValue([overBudgetCandidate]),
-      getPlaceDetails: vi.fn().mockResolvedValue(overBudgetCandidate),
+      searchPlaces: vi.fn().mockResolvedValue([candidateWithoutAudPrice]),
+      getPlaceDetails: vi.fn().mockResolvedValue(candidateWithoutAudPrice),
     })
 
-    // group.budgetAud = 20; PRICE_LEVEL_MODERATE maps to 35 AUD (>$10 over,
-    // but still exercises the "still returned" behavior for an over-budget pick).
     const result = await runVenueAgent(group, deps)
 
     expect(result.source).toBe("live")
-    expect(result.recommendation.overBudgetPreference).toBe(true)
-    expect(result.recommendation.estimatedCostAud).toBe(35)
+    expect(result.recommendation.estimatedCostAud).toBeNull()
+    expect(result.recommendation.overBudgetPreference).toBe(false)
   })
 
   it("flags overDistancePreference when the venue is slightly beyond travelKm", async () => {
@@ -132,5 +132,118 @@ describe("runVenueAgent", () => {
     expect(result.recommendation.venueName).toBe("Real Sports Centre")
     expect(result.recommendation.placeId).toBe("real-place-1")
     expect(result.recommendation.bookingUrl).toBe("https://real-sports.example")
+  })
+
+  it.each(["CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY"])(
+    "rejects a selected venue whose details report %s",
+    async (businessStatus) => {
+      const candidate = makeCandidate({
+        businessStatus: "OPERATIONAL",
+      } as Partial<PlaceCandidate>)
+      const closedDetail = makeCandidate({
+        businessStatus,
+      } as Partial<PlaceCandidate>)
+      const deps = makeDeps({
+        searchPlaces: vi.fn().mockResolvedValue([candidate]),
+        getPlaceDetails: vi.fn().mockResolvedValue(closedDetail),
+      })
+
+      const result = await runVenueAgent(group, deps)
+
+      expect(result.source).toBe("fallback")
+      expect(deps.getPlaceDetails).toHaveBeenCalledTimes(2)
+    }
+  )
+
+  it("marks a website handoff as not requiring booking", async () => {
+    const result = await runVenueAgent(group, makeDeps())
+
+    expect(result.source).toBe("live")
+    expect(result.recommendation.bookingRequired).toBe(false)
+    expect(result.recommendation.bookingUrl).toBe("https://real-sports.example")
+  })
+})
+
+describe("placesTextSearch", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+
+  it("filters temporarily and permanently closed businesses from search results", async () => {
+    vi.stubEnv("GOOGLE_PLACES_API_KEY", "server-only-test-key")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            places: [
+              {
+                id: "open",
+                displayName: { text: "Open Venue" },
+                location: { latitude: -33.89, longitude: 151.19 },
+                businessStatus: "OPERATIONAL",
+              },
+              {
+                id: "temporary",
+                displayName: { text: "Temporarily Closed Venue" },
+                location: { latitude: -33.89, longitude: 151.19 },
+                businessStatus: "CLOSED_TEMPORARILY",
+              },
+              {
+                id: "permanent",
+                displayName: { text: "Permanently Closed Venue" },
+                location: { latitude: -33.89, longitude: 151.19 },
+                businessStatus: "CLOSED_PERMANENTLY",
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+    )
+
+    const results = await placesTextSearch("student meetup")
+
+    expect(results.map((result) => result.placeId)).toEqual(["open"])
+  })
+})
+
+describe("placeDetails", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+
+  it("resolves the first Places photo to a key-free media URL", async () => {
+    vi.stubEnv("GOOGLE_PLACES_API_KEY", "server-only-test-key")
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "photo-place",
+            displayName: { text: "Photographed Venue" },
+            location: { latitude: -33.89, longitude: 151.19 },
+            businessStatus: "OPERATIONAL",
+            photos: [{ name: "places/photo-place/photos/photo-reference" }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            photoUri: "https://lh3.googleusercontent.com/places-photo",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+    vi.stubGlobal("fetch", fetchMock)
+
+    const detail = await placeDetails("photo-place")
+
+    expect(detail.photoUrl).toBe("https://lh3.googleusercontent.com/places-photo")
+    expect(detail.photoUrl).not.toContain("server-only-test-key")
   })
 })

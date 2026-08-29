@@ -21,9 +21,9 @@ export const PLACES_ENDPOINTS = {
 // two required formats — see task-0.2-report.md for the source docs.
 export const PLACES_FIELD_MASK = {
   search:
-    "places.id,places.displayName,places.formattedAddress,places.location,places.currentOpeningHours,places.priceLevel,places.websiteUri,places.googleMapsUri,places.accessibilityOptions",
+    "places.id,places.displayName,places.formattedAddress,places.location,places.currentOpeningHours,places.priceLevel,places.websiteUri,places.googleMapsUri,places.accessibilityOptions,places.businessStatus,places.photos",
   details:
-    "id,displayName,formattedAddress,location,currentOpeningHours,priceLevel,websiteUri,googleMapsUri,accessibilityOptions",
+    "id,displayName,formattedAddress,location,currentOpeningHours,priceLevel,websiteUri,googleMapsUri,accessibilityOptions,businessStatus,photos",
 } as const
 
 // PRD §9.6 — must sum to 1.00.

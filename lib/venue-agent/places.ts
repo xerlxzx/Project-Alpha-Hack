@@ -15,6 +15,8 @@ export interface PlaceCandidate {
   website: string | null
   mapsUrl: string | null
   accessibility: object | null
+  businessStatus: string | null
+  photoUrl: string | null
 }
 
 export type PlaceDetail = PlaceCandidate
@@ -40,9 +42,15 @@ interface RawPlace {
   websiteUri?: string
   googleMapsUri?: string
   accessibilityOptions?: object
+  businessStatus?: string
+  photos?: Array<{ name?: string }>
 }
 
-function normalizePlace(raw: RawPlace): PlaceCandidate {
+export function isClosedBusinessStatus(status: string | null): boolean {
+  return status === "CLOSED_TEMPORARILY" || status === "CLOSED_PERMANENTLY"
+}
+
+function normalizePlace(raw: RawPlace, photoUrl: string | null = null): PlaceCandidate {
   return {
     placeId: raw.id ?? "",
     name: raw.displayName?.text ?? "",
@@ -56,6 +64,28 @@ function normalizePlace(raw: RawPlace): PlaceCandidate {
     website: raw.websiteUri ?? null,
     mapsUrl: raw.googleMapsUri ?? null,
     accessibility: raw.accessibilityOptions ?? null,
+    businessStatus: raw.businessStatus ?? null,
+    photoUrl,
+  }
+}
+
+async function resolvePhotoUrl(photoName: string | undefined): Promise<string | null> {
+  if (!photoName) return null
+
+  const endpoint = `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=1200&skipHttpRedirect=true`
+  try {
+    const response = await fetch(endpoint, {
+      method: "GET",
+      headers: {
+        "X-Goog-Api-Key": getEnv("GOOGLE_PLACES_API_KEY"),
+      },
+    })
+    if (!response.ok) return null
+
+    const media: { photoUri?: string } = await response.json()
+    return media.photoUri ?? null
+  } catch {
+    return null
   }
 }
 
@@ -100,11 +130,11 @@ export async function placesTextSearch(
   }
 
   const data: { places?: RawPlace[] } = await response.json()
-  const candidates = (data.places ?? []).map(normalizePlace)
+  const candidates = (data.places ?? []).map((raw) => normalizePlace(raw))
 
-  // PRD §9.8: closed venues are rejected. Only the *definitively* closed
-  // (openNow === false) are dropped — unknown open status is kept.
-  return candidates.filter((candidate) => candidate.openNow !== false)
+  // `openNow: false` only means the venue is outside today's opening hours.
+  // Reject Places' explicit temporary/permanent closure states instead.
+  return candidates.filter((candidate) => !isClosedBusinessStatus(candidate.businessStatus))
 }
 
 export async function placeDetails(placeId: string): Promise<PlaceDetail> {
@@ -123,5 +153,6 @@ export async function placeDetails(placeId: string): Promise<PlaceDetail> {
   }
 
   const raw: RawPlace = await response.json()
-  return normalizePlace(raw)
+  const photoUrl = await resolvePhotoUrl(raw.photos?.[0]?.name)
+  return normalizePlace(raw, photoUrl)
 }
