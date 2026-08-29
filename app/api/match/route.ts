@@ -3,11 +3,8 @@
 import { getAdminSupabase } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/current-user"
 import { buildMatch, describeGenderMix } from "@/lib/matcher/match"
-import { loadMatchInputs, type MatchPoolMember, type RequestOverrides } from "@/lib/matcher/loadPool"
-
-// Active user from getCurrentUser() (session or demo fallback).
-// Never read a user ID from the request body.
-type MatchRequestBody = RequestOverrides
+import { loadMatchInputs, type MatchPoolMember } from "@/lib/matcher/loadPool"
+import { MatchRequestSchema, requestedMeetupTime } from "@/lib/matcher/request"
 
 // Pre-acceptance disclosure fields only. No names, photos, contact info,
 // exact location, reliability, or reports.
@@ -81,13 +78,22 @@ async function findSeededSuggestion(supabase: ReturnType<typeof getAdminSupabase
 }
 
 export async function POST(request: Request): Promise<Response> {
-  let body: MatchRequestBody = {}
+  let rawBody: unknown = {}
   try {
     const text = await request.text()
-    if (text) body = JSON.parse(text) as MatchRequestBody
+    if (text) rawBody = JSON.parse(text)
   } catch {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 })
   }
+
+  const parsedBody = MatchRequestSchema.safeParse(rawBody)
+  if (!parsedBody.success) {
+    return Response.json(
+      { error: "Invalid match request", issues: parsedBody.error.issues },
+      { status: 400 }
+    )
+  }
+  const body = parsedBody.data
 
   const currentUser = await getCurrentUser()
   if (!currentUser) {
@@ -130,6 +136,7 @@ export async function POST(request: Request): Promise<Response> {
       status: "forming",
       area_lat: groupCentroid?.lat ?? null,
       area_lng: groupCentroid?.lng ?? null,
+      scheduled_at: requestedMeetupTime(body),
       created_by: null,
     })
     .select("id")

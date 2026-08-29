@@ -23,6 +23,8 @@ export interface SafetyActionsProps {
   targetLabel?: string
   /** Meetup this is happening in, attached to a report when present. */
   meetupId?: string
+  /** Render the meetup-wide trusted-contact action alongside member actions. */
+  showTrustedContact?: boolean
   className?: string
 }
 
@@ -255,7 +257,13 @@ function TrustedContactAction() {
 }
 
 /** Block, report, and trusted-contact controls for a co-participant. */
-export function SafetyActions({ targetUserId, targetLabel, meetupId, className }: SafetyActionsProps) {
+export function SafetyActions({
+  targetUserId,
+  targetLabel,
+  meetupId,
+  showTrustedContact = true,
+  className,
+}: SafetyActionsProps) {
   const who = targetLabel?.trim() || "this person"
 
   return (
@@ -264,7 +272,7 @@ export function SafetyActions({ targetUserId, targetLabel, meetupId, className }
       <div className="flex flex-wrap gap-2">
         <BlockAction targetUserId={targetUserId} who={who} />
         <ReportAction targetUserId={targetUserId} meetupId={meetupId} who={who} />
-        <TrustedContactAction />
+        {showTrustedContact && <TrustedContactAction />}
       </div>
     </div>
   )

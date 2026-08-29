@@ -79,6 +79,7 @@ Database: apply `supabase/migrations/*.sql` then `supabase/seed.sql` to a Supaba
 ```bash
 npm run build    # production build
 npx vitest run   # matcher, venue schema/validation, momentum
+npm run check    # lint, tests, then a production build before shipping
 ```
 
 Gemini and Places keys stay in route handlers and server actions. The service-role key does not ship in the client bundle.

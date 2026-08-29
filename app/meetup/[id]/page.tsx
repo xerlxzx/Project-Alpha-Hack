@@ -1,21 +1,13 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { CalendarClock, CheckCircle2, MapPin, ShieldAlert, UserRoundX, UserX } from "lucide-react"
+import { CalendarClock, CheckCircle2, MapPin } from "lucide-react"
 
 import { getAdminSupabase, getServerSupabase } from "@/lib/supabase/server"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { ChatThread, MemberReveal, type ChatMember, type ChatMessage } from "@/components/ChatThread"
 import { LockMeIn } from "@/components/Countdown"
 import { DemoTimeSkip } from "@/components/DemoTimeSkip"
+import { SafetyActions } from "@/components/SafetyActions"
 
 // Same convention as app/layout.tsx, app/profile/page.tsx, and
 // app/onboarding/actions.ts: fall back to the seeded active demo user when
@@ -141,6 +133,7 @@ export default async function MeetupPage({
   }))
 
   const memberList = Object.values(members)
+  const otherMembers = memberList.filter((member) => member.userId !== userId)
   const scheduledLabel = meetup.scheduled_at
     ? new Intl.DateTimeFormat("en-AU", {
         weekday: "short",
@@ -193,6 +186,28 @@ export default async function MeetupPage({
         reason={recommendation?.reason ?? null}
       />
 
+      {otherMembers.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg font-semibold text-foreground">Safety</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {otherMembers.map((member, index) => (
+              <div
+                key={member.userId}
+                className="rounded-2xl bg-card p-4 ring-1 ring-foreground/10"
+              >
+                <p className="mb-3 text-sm font-medium text-foreground">{member.firstName}</p>
+                <SafetyActions
+                  targetUserId={member.userId}
+                  targetLabel={member.firstName}
+                  meetupId={id}
+                  showTrustedContact={index === 0}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg font-semibold text-foreground">Group chat</h2>
         <ChatThread
@@ -238,54 +253,7 @@ function PinnedActivityCard({
         )}
       </div>
       {reason && <p className="text-sm text-muted-foreground">{reason}</p>}
-      <div className="flex flex-wrap gap-2 pt-1">
-        <SafetyStub
-          label="Trusted contact"
-          icon={<ShieldAlert className="size-3.5" aria-hidden />}
-          title="Share with a trusted contact"
-          description="Sends your meetup time and venue to someone you trust. Not wired up yet in this build — placeholder for a later task."
-        />
-        <SafetyStub
-          label="Block"
-          icon={<UserX className="size-3.5" aria-hidden />}
-          title="Block a member"
-          description="Blocking removes someone from your future matches. Not wired up yet in this build — placeholder for a later task."
-        />
-        <SafetyStub
-          label="Report"
-          icon={<UserRoundX className="size-3.5" aria-hidden />}
-          title="Report a concern"
-          description="Reports are never visible to other participants. Not wired up yet in this build."
-        />
-      </div>
     </div>
-  )
-}
-
-function SafetyStub({
-  label,
-  icon,
-  title,
-  description,
-}: {
-  label: string
-  icon: React.ReactNode
-  title: string
-  description: string
-}) {
-  return (
-    <Dialog>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
-        {icon}
-        {label}
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-      </DialogContent>
-    </Dialog>
   )
 }
 

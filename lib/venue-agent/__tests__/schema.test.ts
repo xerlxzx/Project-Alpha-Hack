@@ -33,8 +33,7 @@ describe("RecommendationSchema", () => {
   })
 
   it("fails when placeId is missing", () => {
-    const { placeId, ...rest } = makeRecommendation()
-    const result = RecommendationSchema.safeParse(rest)
+    const result = RecommendationSchema.safeParse(makeRecommendation({ placeId: undefined }))
     expect(result.success).toBe(false)
   })
 
@@ -69,8 +68,7 @@ describe("SearchPlanSchema", () => {
   })
 
   it("fails when textQuery is missing", () => {
-    const { textQuery, ...rest } = makeSearchPlan()
-    const result = SearchPlanSchema.safeParse(rest)
+    const result = SearchPlanSchema.safeParse(makeSearchPlan({ textQuery: undefined }))
     expect(result.success).toBe(false)
   })
 })
