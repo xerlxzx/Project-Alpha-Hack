@@ -3,17 +3,15 @@
 // selection is explicitly out of scope here (PRD §9.8) — it runs later,
 // against an accepted group, as its own route.
 import { getAdminSupabase } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/current-user"
 import { buildMatch } from "@/lib/matcher/match"
 import { loadMatchInputs, type MatchPoolMember, type RequestOverrides } from "@/lib/matcher/loadPool"
 
-// The seeded active demo user (supabase/seed.sql) — used whenever the caller
-// doesn't specify one, per the brief's "default to the seeded active user
-// for the demo".
-const DEFAULT_ACTIVE_USER_ID = "00000000-0000-0000-0001-000000000001"
-
-interface MatchRequestBody extends RequestOverrides {
-  activeUserId?: string
-}
+// Who acts as "the active user" comes from lib/current-user.ts's session ->
+// seeded-demo-user fallback, never from the request body — a client-supplied
+// user id would let any caller impersonate any of the 12 seeded people and
+// create meetups in their name.
+type MatchRequestBody = RequestOverrides
 
 // PRD §9.10 pre-acceptance disclosure — ONLY these fields. No names, photos,
 // contact info, exact location, reliability, or reports.
@@ -95,7 +93,11 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const activeUserId = body.activeUserId ?? DEFAULT_ACTIVE_USER_ID
+  const currentUser = await getCurrentUser()
+  if (!currentUser) {
+    return Response.json({ error: "Unauthenticated" }, { status: 401 })
+  }
+  const activeUserId = currentUser.id
   const now = new Date()
   const supabase = getAdminSupabase()
 
