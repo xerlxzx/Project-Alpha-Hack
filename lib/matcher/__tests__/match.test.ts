@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest"
 import type { AvailabilityWindow, Preferences, Profile } from "@/lib/types"
 import { buildMatch, describeGenderMix } from "@/lib/matcher/match"
-import { accessibilityCompatible, activitySignalsAllowed } from "@/lib/matcher/loadPool"
+import {
+  accessibilityCompatible,
+  activitySignalsAllowed,
+  deriveCandidateGateFlags,
+} from "@/lib/matcher/loadPool"
 
 type ActiveUser = Parameters<typeof buildMatch>[0]
 type PoolMember = Parameters<typeof buildMatch>[1][number]
@@ -188,10 +192,27 @@ describe("pool gate signal derivation", () => {
   it("fails closed when a candidate does not share the active accessibility need", () => {
     expect(accessibilityCompatible("wheelchair access needed", null)).toBe(false)
     expect(accessibilityCompatible("Wheelchair access needed", " wheelchair access needed ")).toBe(true)
-    expect(accessibilityCompatible(null, "wheelchair access needed")).toBe(true)
+    expect(accessibilityCompatible(null, "wheelchair access needed")).toBe(false)
+    expect(accessibilityCompatible(null, null)).toBe(true)
   })
 
-  it("rejects explicit excluded activity signals without rejecting ordinary interests", () => {
+  it("evaluates only the proposed activity, never candidate hobbies", () => {
+    const activePreferences = makePreferences("active-1")
+    const candidateWithExcludedHobby = makePreferences("cand-1", {
+      hobbies: ["wine tasting"],
+    })
+
+    expect(deriveCandidateGateFlags(activePreferences, candidateWithExcludedHobby, null).activityAllowed).toBe(true)
+    expect(
+      deriveCandidateGateFlags(activePreferences, candidateWithExcludedHobby, "basketball").activityAllowed
+    ).toBe(true)
+    expect(
+      deriveCandidateGateFlags(activePreferences, candidateWithExcludedHobby, "wine tasting").activityAllowed
+    ).toBe(false)
+  })
+
+  it("keeps proposed-activity policy deterministic", () => {
+    expect(activitySignalsAllowed([])).toBe(true)
     expect(activitySignalsAllowed(["wine tasting", "food exploration"])).toBe(false)
     expect(activitySignalsAllowed(["basketball", "food exploration"])).toBe(true)
   })
