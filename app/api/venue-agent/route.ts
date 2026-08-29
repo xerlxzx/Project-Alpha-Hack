@@ -1,10 +1,21 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import { getAdminSupabase } from "@/lib/supabase/server"
+import { getAdminSupabase, getServerSupabase } from "@/lib/supabase/server"
 import { placeDetails } from "@/lib/venue-agent/places"
 import { runVenueAgent, type GroupProfile } from "@/lib/venue-agent/agent"
 
 const RequestBodySchema = z.object({ meetupId: z.string() })
+
+// Seeded active demo user (supabase/seed.sql) — used ONLY when there is no
+// real Supabase Auth session, matching the convention in
+// app/onboarding/actions.ts's getCurrentUserId. Never read from client input.
+export const DEMO_USER_ID = "00000000-0000-0000-0001-000000000001"
+
+export async function getCurrentUserId(): Promise<string> {
+  const supabase = await getServerSupabase()
+  const { data } = await supabase.auth.getUser()
+  return data.user?.id ?? DEMO_USER_ID
+}
 
 // PRD §9.8 fallbacks for when a member hasn't set a preference at all.
 const DEFAULT_BUDGET_AUD = 20
@@ -127,6 +138,25 @@ export async function POST(request: Request) {
 
   const { meetupId } = parsed.data
 
+  // Authz gate: the caller must be a member of this meetup. Resolved from
+  // the session (never from client-supplied input) — otherwise anyone could
+  // trigger Gemini/Places spend and write recommendations into any meetup.
+  const userId = await getCurrentUserId()
+  const adminSupabase = getAdminSupabase()
+  const { data: member, error: memberError } = await adminSupabase
+    .from("meetup_members")
+    .select("id")
+    .eq("meetup_id", meetupId)
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  if (memberError) {
+    return NextResponse.json({ error: "lookup_failed", detail: memberError.message }, { status: 500 })
+  }
+  if (!member) {
+    return NextResponse.json({ error: "not_a_member" }, { status: 403 })
+  }
+
   let group: GroupProfile
   try {
     group = await buildGroupProfileForMeetup(meetupId)
@@ -152,8 +182,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const supabase = getAdminSupabase()
-  const { error: insertError } = await supabase.from("activity_recommendations").insert({
+  const { error: insertError } = await adminSupabase.from("activity_recommendations").insert({
     meetup_id: meetupId,
     place_id: result.recommendation.placeId,
     venue_name: result.recommendation.venueName,

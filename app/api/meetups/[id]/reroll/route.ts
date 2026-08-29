@@ -2,22 +2,11 @@ import { GoogleGenAI } from "@google/genai"
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { GEMINI_MODEL, getEnv } from "@/lib/config"
-import { getAdminSupabase, getServerSupabase } from "@/lib/supabase/server"
+import { getAdminSupabase } from "@/lib/supabase/server"
 import { runVenueAgent, type AgentDeps, type GroupProfile } from "@/lib/venue-agent/agent"
 import { placeDetails, placesTextSearch, type PlaceCandidate } from "@/lib/venue-agent/places"
 import { SearchPlanSchema, type SearchPlan } from "@/lib/venue-agent/schema"
-import { buildGroupProfileForMeetup } from "@/app/api/venue-agent/route"
-
-// Seeded active demo user (supabase/seed.sql) — used whenever there is no
-// real Supabase Auth session, matching the convention in
-// app/onboarding/actions.ts's getCurrentUserId.
-const DEMO_USER_ID = "00000000-0000-0000-0001-000000000001"
-
-async function getCurrentUserId(): Promise<string> {
-  const supabase = await getServerSupabase()
-  const { data } = await supabase.auth.getUser()
-  return data.user?.id ?? DEMO_USER_ID
-}
+import { buildGroupProfileForMeetup, getCurrentUserId } from "@/app/api/venue-agent/route"
 
 // What Gemini may contribute when re-ranking for a reroll: a pick from the
 // (already-filtered) candidates plus an explanation — never a venue fact.
