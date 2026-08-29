@@ -1,11 +1,26 @@
 import { describe, expect, it } from "vitest"
 import {
   applyEvent,
+  CELL,
   createField,
   resizeField,
   setVoids,
   stepField,
+  type FieldState,
 } from "@/lib/landing-field"
+
+function assertLiveVenuesOnGridAndClear(field: FieldState): void {
+  for (const group of field.groups) {
+    if (group.phase !== "seeking" && group.phase !== "locked") continue
+    expect(group.venueX % CELL).toBe(0)
+    expect(group.venueY % CELL).toBe(0)
+    for (const rect of field.voids) {
+      const cx = rect.x + rect.w / 2
+      const cy = rect.y + rect.h / 2
+      expect(Math.hypot(group.venueX - cx, group.venueY - cy)).toBeGreaterThanOrEqual(80)
+    }
+  }
+}
 
 describe("createField", () => {
   it("spawns 96 particles on a wide canvas and at least one seeking group", () => {
@@ -77,5 +92,31 @@ describe("resizeField", () => {
     expect(field.particles).toHaveLength(56)
     expect(field.width).toBe(400)
     expect(field.height).toBe(700)
+  })
+})
+
+describe("venue placement", () => {
+  it("keeps live venues on grid intersections at least 80px from void centres after stepping", () => {
+    const field = createField(800, 600, 42)
+    setVoids(field, [{ x: 200, y: 200, w: 240, h: 160, r: 16 }])
+    for (let i = 0; i < 240; i++) stepField(field, 1 / 60, false)
+    assertLiveVenuesOnGridAndClear(field)
+  })
+
+  it("validates the snapped venue when a void sits on a grid intersection", () => {
+    const field = createField(800, 600, 99)
+    setVoids(field, [{ x: 192, y: 192, w: 96, h: 96, r: 8 }])
+    for (let i = 0; i < 180; i++) stepField(field, 1 / 60, false)
+    assertLiveVenuesOnGridAndClear(field)
+  })
+
+  it("scans grid intersections for fallback when hash retries are exhausted", () => {
+    const field = createField(400, 400, 7)
+    setVoids(field, [{ x: 48, y: 48, w: 304, h: 304, r: 16 }])
+    for (let i = 0; i < 300; i++) stepField(field, 1 / 60, false)
+    expect(field.groups.some((g) => g.phase === "seeking" || g.phase === "locked")).toBe(
+      true,
+    )
+    assertLiveVenuesOnGridAndClear(field)
   })
 })

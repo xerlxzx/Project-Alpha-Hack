@@ -1,4 +1,5 @@
 import {
+  CELL,
   flowAt,
   hash2,
   particleCountForWidth,
@@ -39,26 +40,53 @@ function liveGroupCount(groups: MatchGroup[]): number {
   return groups.filter((g) => g.phase === "seeking" || g.phase === "locked").length
 }
 
+const VENUE_VOID_CLEARANCE = 80
+
+function isValidVenue(x: number, y: number, voids: Rect[]): boolean {
+  for (const rect of voids) {
+    const cx = rect.x + rect.w / 2
+    const cy = rect.y + rect.h / 2
+    if (Math.hypot(x - cx, y - cy) < VENUE_VOID_CLEARANCE) return false
+    if (roundedRectSdf(x, y, rect) < 0) return false
+  }
+  return true
+}
+
+function findFallbackVenue(state: FieldState): { x: number; y: number } {
+  const inset = CELL
+  for (let gy = inset; gy <= state.height - inset; gy += CELL) {
+    for (let gx = inset; gx <= state.width - inset; gx += CELL) {
+      if (isValidVenue(gx, gy, state.voids)) return { x: gx, y: gy }
+    }
+  }
+  for (let gy = 0; gy <= state.height; gy += CELL) {
+    for (let gx = 0; gx <= state.width; gx += CELL) {
+      if (isValidVenue(gx, gy, state.voids)) return { x: gx, y: gy }
+    }
+  }
+  return snapToGrid(state.width / 2, state.height / 2)
+}
+
 function pickVenue(state: FieldState, attempt: number): { x: number; y: number } {
   for (let t = 0; t < 8; t++) {
     const vx = 80 + hash2(state.seed + t, attempt) * (state.width - 160)
     const vy = 80 + hash2(attempt, state.seed + t) * (state.height - 160)
-    let clear = true
-    for (const rect of state.voids) {
-      const cx = rect.x + rect.w / 2
-      const cy = rect.y + rect.h / 2
-      if (Math.hypot(vx - cx, vy - cy) < 80) {
-        clear = false
-        break
-      }
-      if (roundedRectSdf(vx, vy, rect) < 24) {
-        clear = false
-        break
-      }
-    }
-    if (clear) return snapToGrid(vx, vy)
+    const snapped = snapToGrid(vx, vy)
+    if (isValidVenue(snapped.x, snapped.y, state.voids)) return snapped
   }
-  return snapToGrid(state.width / 2, state.height / 2)
+  return findFallbackVenue(state)
+}
+
+function revalidateLiveVenues(state: FieldState): void {
+  for (let i = 0; i < state.groups.length; i++) {
+    const group = state.groups[i]
+    if (group.phase !== "seeking" && group.phase !== "locked") continue
+    if (!isValidVenue(group.venueX, group.venueY, state.voids)) {
+      const venue = pickVenue(state, i)
+      group.venueX = venue.x
+      group.venueY = venue.y
+    }
+  }
 }
 
 function spawnGroup(state: FieldState, attempt: number): boolean {
@@ -162,6 +190,7 @@ export function resizeField(state: FieldState, width: number, height: number): v
 
 export function setVoids(state: FieldState, voids: Rect[]): void {
   state.voids = [...voids]
+  revalidateLiveVenues(state)
 }
 
 export function applyEvent(state: FieldState, event: FieldEvent): void {
