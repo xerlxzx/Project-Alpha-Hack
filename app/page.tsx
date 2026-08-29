@@ -17,7 +17,7 @@ export default function LandingPage() {
   return (
     <div
       ref={hostRef}
-      className="dark relative flex min-h-dvh flex-col items-center justify-center overflow-x-clip bg-[#0b0a09] px-6 py-16 text-foreground"
+      className="dark relative isolate flex min-h-dvh flex-col items-center justify-center overflow-x-clip bg-[#0b0a09] px-6 py-16 text-foreground"
     >
       <MatchingField hostRef={hostRef} />
 
