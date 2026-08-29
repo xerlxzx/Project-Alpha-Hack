@@ -23,9 +23,9 @@ export interface ProposalCardProps {
   estimatedCostAud?: number | null;
   /** Explanation tied to shared interests. */
   reason: string;
-  /** Show a clear amber-labelled warning when the pick runs over the group's budget. */
+  /** Show a clear neutral warning when the pick runs over the group's budget. */
   overBudgetPreference?: boolean;
-  /** Show a clear amber-labelled warning when the pick runs beyond the group's distance preference. */
+  /** Show a clear neutral warning when the pick runs beyond the group's distance preference. */
   overDistancePreference?: boolean;
   mapsUrl?: string | null;
   bookingUrl?: string | null;
@@ -111,12 +111,8 @@ export function ProposalCard({
         <div className="flex flex-wrap gap-1.5">
           {distanceLabel && (
             <Badge
-              variant={overDistancePreference ? undefined : "outline"}
-              className={
-                overDistancePreference
-                  ? "border-transparent bg-accent text-accent-foreground"
-                  : undefined
-              }
+              variant="outline"
+              className={overDistancePreference ? "bg-muted text-foreground" : undefined}
             >
               <MapPin className="size-3" aria-hidden />
               {distanceLabel}
@@ -126,12 +122,8 @@ export function ProposalCard({
             </Badge>
           )}
           <Badge
-            variant={overBudgetPreference ? undefined : "outline"}
-            className={
-              overBudgetPreference
-                ? "border-transparent bg-accent text-accent-foreground"
-                : undefined
-            }
+            variant="outline"
+            className={overBudgetPreference ? "bg-muted text-foreground" : undefined}
           >
             <Wallet className="size-3" aria-hidden />
             {costLabel}
@@ -144,13 +136,13 @@ export function ProposalCard({
         {(overBudgetPreference || overDistancePreference) && (
           <div className="flex flex-col gap-1">
             {overBudgetPreference && (
-              <p className="flex items-center gap-1.5 text-xs font-medium text-accent-hover dark:text-accent">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                 <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
                 Slightly over the group&apos;s usual budget
               </p>
             )}
             {overDistancePreference && (
-              <p className="flex items-center gap-1.5 text-xs font-medium text-accent-hover dark:text-accent">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                 <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
                 Slightly beyond the group&apos;s usual distance
               </p>
