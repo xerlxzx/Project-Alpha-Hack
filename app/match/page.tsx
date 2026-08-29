@@ -93,10 +93,6 @@ type Phase =
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-function cleanGenderMix(raw: string): string {
-  return raw.startsWith("not tracked") ? "mixed" : raw
-}
-
 function formatTime(iso: string): string {
   return new Intl.DateTimeFormat("en-AU", {
     weekday: "short",
@@ -191,7 +187,7 @@ function MatchFlow() {
           resolved = {
             meetupId: g.meetupId,
             groupSize: g.groupSize,
-            genderMix: "mixed",
+            genderMix: g.genderMix,
             members: g.members,
             explanation: g.explanation,
           }
@@ -214,7 +210,7 @@ function MatchFlow() {
           resolved = {
             meetupId: data.meetupId,
             groupSize: data.groupSize,
-            genderMix: cleanGenderMix(data.genderMix),
+            genderMix: data.genderMix,
             members: data.members,
             explanation: data.explanation,
           }

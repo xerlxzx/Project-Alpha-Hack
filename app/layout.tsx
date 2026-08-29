@@ -41,6 +41,7 @@ const DEMO_USER_ID = "00000000-0000-0000-0001-000000000001";
 interface NavState {
   showTabBar: boolean;
   activeMeetupId: string | null;
+  activeMeetupStatus: "forming" | "confirmed" | null;
 }
 
 // Hybrid nav (DESIGN_DIRECTION.md "Navigation"): the bottom tab bar appears
@@ -61,7 +62,7 @@ async function getNavState(): Promise<NavState> {
       .eq("accepted", true);
 
     if (error || !data || data.length === 0) {
-      return { showTabBar: false, activeMeetupId: null };
+      return { showTabBar: false, activeMeetupId: null, activeMeetupStatus: null };
     }
 
     type Row = {
@@ -81,9 +82,11 @@ async function getNavState(): Promise<NavState> {
     return {
       showTabBar: Boolean(active) || hasHistory,
       activeMeetupId: active?.meetup_id ?? null,
+      activeMeetupStatus:
+        active && statusOf(active) === "confirmed" ? "confirmed" : active ? "forming" : null,
     };
   } catch {
-    return { showTabBar: false, activeMeetupId: null };
+    return { showTabBar: false, activeMeetupId: null, activeMeetupStatus: null };
   }
 }
 
@@ -105,7 +108,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeProvider>
           {children}
           {nav.showTabBar && (
-            <BottomTabBar activeMeetupId={nav.activeMeetupId} />
+            <BottomTabBar
+              activeMeetupId={nav.activeMeetupId}
+              activeMeetupStatus={nav.activeMeetupStatus}
+            />
           )}
           <ThemeToggle />
         </ThemeProvider>

@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 export interface BottomTabBarProps {
   /** The user's current active meetup, if any — links straight into it. */
   activeMeetupId?: string | null;
+  activeMeetupStatus?: "forming" | "confirmed" | null;
 }
 
 interface TabDef {
@@ -28,7 +29,7 @@ interface TabDef {
  * and idle users never see this, keeping their flow single-action and
  * minimal-chrome. One of the four surfaces sanctioned for Liquid Glass.
  */
-export function BottomTabBar({ activeMeetupId }: BottomTabBarProps) {
+export function BottomTabBar({ activeMeetupId, activeMeetupStatus }: BottomTabBarProps) {
   const pathname = usePathname();
   const reduce = useReducedMotion();
 
@@ -37,8 +38,11 @@ export function BottomTabBar({ activeMeetupId }: BottomTabBarProps) {
     ...(activeMeetupId
       ? [
           {
-            href: `/match?meetupId=${activeMeetupId}`,
-            match: "/match",
+            href:
+              activeMeetupStatus === "confirmed"
+                ? `/meetup/${activeMeetupId}`
+                : `/match?meetupId=${activeMeetupId}`,
+            match: activeMeetupStatus === "confirmed" ? `/meetup/${activeMeetupId}` : "/match",
             label: "Meetup",
             icon: Users,
           },
