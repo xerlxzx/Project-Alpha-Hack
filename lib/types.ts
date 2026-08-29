@@ -38,6 +38,8 @@ export interface Preferences {
   accessibility: string | null;
   socialEnergy: string | null;
   weeklyGoal: number | null;
+  areaLat?: number | null;
+  areaLng?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -60,6 +62,10 @@ export interface Meetup {
   areaLng: number | null;
   scheduledAt: string | null;
   createdBy: string | null;
+  activityIntent?: string | null;
+  tags?: string[] | null;
+  costMin?: number | null;
+  costMax?: number | null;
   createdAt: string;
 }
 
