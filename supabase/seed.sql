@@ -1,10 +1,11 @@
--- Momentum — demo seed data (Task 1.2, extended by Task 1.4)
--- Builds on supabase/migrations/0001_schema.sql AND 0002_location_and_meetup_fields.sql
+-- Momentum — demo seed data (Task 1.2, extended by Task 1.4 and 1.5)
+-- Builds on supabase/migrations/0001_schema.sql, 0002_location_and_meetup_fields.sql
 -- (area_lat/area_lng on preferences; activity_intent/tags/cost_min/cost_max
--- on meetups) — run this AFTER both, with a service-role/superuser
--- connection (it inserts into auth.users/auth.identities directly, and the
--- service role bypasses RLS on every public.* table so the inserts below
--- don't need to satisfy any policy).
+-- on meetups), AND 0003_browse_and_gender.sql (preferences.gender) — run
+-- this AFTER all three, with a service-role/superuser connection (it
+-- inserts into auth.users/auth.identities directly, and the service role
+-- bypasses RLS on every public.* table so the inserts below don't need to
+-- satisfy any policy).
 --
 -- Fixed UUID scheme (all under one root so they're easy to recognise/grep):
 --   Users            00000000-0000-0000-0001-0000000000NN   NN = 01..12 (01 = active demo user)
@@ -160,6 +161,25 @@ insert into public.preferences (
   -- Coogee — farthest out (~7 km), matches his higher travel tolerance
   ('00000000-0000-0000-0001-000000000012', 25, 20, ARRAY['hiking','stargazing'], ARRAY['hiking','astronomy','board games'], 'men', 'English', null, 'low', 1, -33.9205, 151.2544)
 on conflict (user_id) do nothing;
+
+-- public.preferences.gender (added by 0003) — the user's own gender
+-- identity, varied across the 12 profiles (PRD §18's "gender" axis and
+-- §9.10's "gender mix" disclosure both need this, distinct from gender_pref
+-- which is a filter on others). Written as UPDATEs, not folded into the
+-- INSERT above, so this backfills rows that were seeded before 0003 existed
+-- — safe to rerun either way since it targets fixed user_ids.
+update public.preferences set gender = 'man' where user_id = '00000000-0000-0000-0001-000000000001';
+update public.preferences set gender = 'woman' where user_id = '00000000-0000-0000-0001-000000000002';
+update public.preferences set gender = 'man' where user_id = '00000000-0000-0000-0001-000000000003';
+update public.preferences set gender = 'woman' where user_id = '00000000-0000-0000-0001-000000000004';
+update public.preferences set gender = 'non-binary' where user_id = '00000000-0000-0000-0001-000000000005';
+update public.preferences set gender = 'man' where user_id = '00000000-0000-0000-0001-000000000006';
+update public.preferences set gender = 'woman' where user_id = '00000000-0000-0000-0001-000000000007';
+update public.preferences set gender = 'man' where user_id = '00000000-0000-0000-0001-000000000008';
+update public.preferences set gender = 'woman' where user_id = '00000000-0000-0000-0001-000000000009';
+update public.preferences set gender = 'man' where user_id = '00000000-0000-0000-0001-000000000010';
+update public.preferences set gender = 'woman' where user_id = '00000000-0000-0000-0001-000000000011';
+update public.preferences set gender = 'man' where user_id = '00000000-0000-0000-0001-000000000012';
 
 -- ---------------------------------------------------------------------------
 -- public.user_reliability — private (no RLS policy grants it to clients);

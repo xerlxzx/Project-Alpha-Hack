@@ -33,6 +33,8 @@ export interface Preferences {
   budgetAud: number | null;
   hobbies: string[];
   interests: string[];
+  /** The user's own gender identity (distinct from genderPref, their filter on others' gender). */
+  gender?: string | null;
   genderPref: string | null;
   languagePref: string | null;
   accessibility: string | null;
