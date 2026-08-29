@@ -526,16 +526,7 @@ export default function HomePage() {
                 className="block"
               >
                 {presenceLine && !activity ? (
-                  <span className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-success/25 bg-success/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-success">
-                      <span
-                        aria-hidden
-                        className="h-1.5 w-1.5 rounded-full bg-success"
-                      />
-                      Live
-                    </span>
-                    <span aria-live="polite">{heroLine}</span>
-                  </span>
+                  <span aria-live="polite">{heroLine}</span>
                 ) : (
                   heroLine
                 )}
