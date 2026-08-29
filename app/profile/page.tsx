@@ -1,4 +1,7 @@
-import { getAdminSupabase } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
+
+import { getServerSupabase, getAdminSupabase } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/current-user"
 import {
   activitiesThisWeek,
   weeklyStreak,
@@ -9,17 +12,6 @@ import type { MomentumEvent } from "@/lib/types"
 import { MomentumRing } from "@/components/MomentumRing"
 import { ActivityPassport } from "@/components/ActivityPassport"
 import { ShareCard } from "@/components/ShareCard"
-
-/**
- * No auth/session flow exists yet in this prototype, so there is no
- * `auth.uid()` for RLS to key off. `getServerSupabase()` (anon key, the
- * brief's suggested helper) was verified empirically to return zero rows
- * for this user's `momentum_events` - RLS silently filters everything out
- * with no session cookie - while the service-role client correctly returns
- * the seeded row. Using the admin client for this one hardcoded demo user
- * is a deliberate, scoped stand-in until real auth lands (see the report).
- */
-const DEMO_USER_ID = "00000000-0000-0000-0001-000000000001"
 
 interface MomentumEventRow {
   id: string
@@ -44,15 +36,30 @@ function toMomentumEvent(row: MomentumEventRow): MomentumEvent {
 }
 
 export default async function ProfilePage() {
-  const supabase = getAdminSupabase()
+  const currentUser = await getCurrentUser()
+  if (!currentUser) {
+    // No session, and demo mode is disabled - the root page hosts the only
+    // sign-in surface in this app (AuthPanel + DemoLogin), not a dedicated
+    // /sign-in route.
+    redirect("/")
+  }
+
+  // A real session (including one established via the demo-login magic
+  // link, which is a genuine Supabase Auth session for the seeded user) has
+  // its own `auth.uid()`, so `getServerSupabase()` sees the same rows RLS
+  // already scopes to this user - no need for the admin client. Only the
+  // hardcoded env-var fallback path (`isDemo`, no session cookie at all)
+  // still needs it, since RLS has no `auth.uid()` to match against then.
+  const supabase = currentUser.isDemo ? getAdminSupabase() : await getServerSupabase()
+  const userId = currentUser.id
 
   const [{ data: eventRows }, { data: prefRow }, { data: badgeRows }] = await Promise.all([
     supabase
       .from("momentum_events")
       .select("id, user_id, activity_id, week, completed_at, hours, created_at")
-      .eq("user_id", DEMO_USER_ID),
-    supabase.from("preferences").select("weekly_goal").eq("user_id", DEMO_USER_ID).maybeSingle(),
-    supabase.from("badges").select("code").eq("user_id", DEMO_USER_ID),
+      .eq("user_id", userId),
+    supabase.from("preferences").select("weekly_goal").eq("user_id", userId).maybeSingle(),
+    supabase.from("badges").select("code").eq("user_id", userId),
   ])
 
   const events = (eventRows ?? []).map(toMomentumEvent)
