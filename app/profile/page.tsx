@@ -11,6 +11,7 @@ import {
 import type { MomentumEvent } from "@/lib/types"
 import { MomentumRing } from "@/components/MomentumRing"
 import { ActivityPassport } from "@/components/ActivityPassport"
+import { ConnectionMap } from "@/components/ConnectionMap"
 import { ShareCard } from "@/components/ShareCard"
 
 interface MomentumEventRow {
@@ -117,6 +118,8 @@ export default async function ProfilePage() {
         level={passport.level}
         badges={badgeCodes}
       />
+
+      <ConnectionMap />
 
       <ShareCard completed={thisWeek.completed} goal={thisWeek.goal} streak={streak} />
     </main>

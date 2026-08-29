@@ -1,3 +1,5 @@
+import Link from "next/link"
+
 import { cn } from "@/lib/utils"
 
 export interface ActivityPassportProps {
@@ -30,6 +32,8 @@ export function ActivityPassport({
   badges,
   className,
 }: ActivityPassportProps) {
+  const privilegesUnlocked = level >= 2
+  const activitiesUntilUnlock = Math.max(0, 5 - totalActivities)
   const stats: { label: string; value: string }[] = [
     { label: "This week", value: `${thisWeek.completed}/${thisWeek.goal}` },
     { label: "Weekly streak", value: `${streak} week${streak === 1 ? "" : "s"}` },
@@ -74,6 +78,61 @@ export function ActivityPassport({
           </div>
         </div>
       )}
+
+      <div className="mt-5 border-t border-border pt-4">
+        <h3 className="text-sm font-semibold text-foreground">Level privileges</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Complete activities to unlock more ways to explore.
+        </p>
+
+        <div className="mt-3 space-y-2">
+          <div className="rounded-xl border border-border bg-background p-3.5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Host an activity</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {privilegesUnlocked
+                    ? "Create and host your own public meetup."
+                    : `Locked until level 2 — ${activitiesUntilUnlock} ${
+                        activitiesUntilUnlock === 1 ? "activity" : "activities"
+                      } to go.`}
+                </p>
+              </div>
+              <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                {privilegesUnlocked ? "Unlocked" : "Locked"}
+              </span>
+            </div>
+            {privilegesUnlocked && (
+              <Link
+                href="/meetups/create"
+                className="mt-3 inline-flex min-h-10 items-center justify-center rounded-full bg-amber-500 px-4 text-sm font-semibold text-stone-950 transition-colors hover:bg-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:ring-offset-background"
+              >
+                Host an activity
+              </Link>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border bg-background p-3.5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Adventurous recommendations
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {privilegesUnlocked
+                    ? "Unlocked — your suggestions can now stretch beyond familiar picks."
+                    : `Locked until level 2 — complete ${activitiesUntilUnlock} more ${
+                        activitiesUntilUnlock === 1 ? "activity" : "activities"
+                      }.`}
+                </p>
+              </div>
+              <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                {privilegesUnlocked ? "Unlocked" : "Locked"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
   )
 }
