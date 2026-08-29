@@ -4,7 +4,6 @@ import {
   ImageOff,
   MapPin,
   Sparkles,
-  Ticket,
   TriangleAlert,
   Wallet,
 } from "lucide-react";
@@ -21,7 +20,7 @@ export interface ProposalCardProps {
   photoUrl?: string | null;
   openNow?: boolean | null;
   estimatedDistanceKm?: number;
-  estimatedCostAud?: number;
+  estimatedCostAud?: number | null;
   /** Explanation tied to shared interests. */
   reason: string;
   /** Show a clear amber-labelled warning when the pick runs over the group's budget. */
@@ -59,7 +58,8 @@ export function ProposalCard({
         ? `${Math.round(estimatedDistanceKm * 1000)} m away`
         : `${estimatedDistanceKm.toFixed(1)} km away`
       : null;
-  const costLabel = estimatedCostAud != null ? `~$${estimatedCostAud} AUD` : null;
+  const costLabel =
+    estimatedCostAud != null ? `~$${estimatedCostAud} AUD` : "Cost unavailable";
 
   return (
     <div
@@ -125,22 +125,20 @@ export function ProposalCard({
               )}
             </Badge>
           )}
-          {costLabel && (
-            <Badge
-              variant={overBudgetPreference ? undefined : "outline"}
-              className={
-                overBudgetPreference
-                  ? "border-transparent bg-accent text-accent-foreground"
-                  : undefined
-              }
-            >
-              <Wallet className="size-3" aria-hidden />
-              {costLabel}
-              {overBudgetPreference && (
-                <TriangleAlert className="size-3" aria-hidden />
-              )}
-            </Badge>
-          )}
+          <Badge
+            variant={overBudgetPreference ? undefined : "outline"}
+            className={
+              overBudgetPreference
+                ? "border-transparent bg-accent text-accent-foreground"
+                : undefined
+            }
+          >
+            <Wallet className="size-3" aria-hidden />
+            {costLabel}
+            {overBudgetPreference && (
+              <TriangleAlert className="size-3" aria-hidden />
+            )}
+          </Badge>
         </div>
 
         {(overBudgetPreference || overDistancePreference) && (
@@ -180,15 +178,15 @@ export function ProposalCard({
                 <ExternalLink data-icon="inline-end" aria-hidden />
               </Button>
             )}
-            {bookingUrl && (
+            {bookingUrl && bookingUrl !== mapsUrl && (
               <Button
                 size="sm"
                 render={
                   <a href={bookingUrl} target="_blank" rel="noreferrer" />
                 }
               >
-                <Ticket data-icon="inline-start" aria-hidden />
-                Book
+                Visit venue website
+                <ExternalLink data-icon="inline-end" aria-hidden />
               </Button>
             )}
           </div>

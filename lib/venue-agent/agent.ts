@@ -2,7 +2,13 @@ import { GoogleGenAI } from "@google/genai"
 import { z } from "zod"
 import { GEMINI_MODEL, getEnv } from "@/lib/config"
 import { FALLBACK_RECOMMENDATION } from "@/lib/venue-agent/fallback"
-import { placeDetails, placesTextSearch, type PlaceCandidate, type PlaceDetail } from "@/lib/venue-agent/places"
+import {
+  isClosedBusinessStatus,
+  placeDetails,
+  placesTextSearch,
+  type PlaceCandidate,
+  type PlaceDetail,
+} from "@/lib/venue-agent/places"
 import { RecommendationSchema, SearchPlanSchema, type Recommendation, type SearchPlan } from "@/lib/venue-agent/schema"
 
 export interface AgentStep {
@@ -58,35 +64,13 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
   return EARTH_RADIUS_KM * 2 * Math.asin(Math.sqrt(h))
 }
 
-// Google Places (New) reports price as a category, not a dollar figure —
-// map it to an indicative AUD estimate for the §17 `estimatedCostAud` field.
-const PRICE_LEVEL_AUD: Record<string, number> = {
-  PRICE_LEVEL_FREE: 0,
-  PRICE_LEVEL_INEXPENSIVE: 15,
-  PRICE_LEVEL_MODERATE: 35,
-  PRICE_LEVEL_EXPENSIVE: 60,
-  PRICE_LEVEL_VERY_EXPENSIVE: 100,
-}
-const DEFAULT_ESTIMATED_COST_AUD = 20
-
-function estimateCostAud(priceLevel: string | number | null, plan: SearchPlan): number {
-  if (typeof priceLevel === "string" && priceLevel in PRICE_LEVEL_AUD) {
-    return PRICE_LEVEL_AUD[priceLevel]
-  }
-  if (typeof priceLevel === "number") {
-    return priceLevel
-  }
-  if (plan.minPrice !== undefined && plan.maxPrice !== undefined) {
-    return (plan.minPrice + plan.maxPrice) / 2
-  }
-  return plan.maxPrice ?? plan.minPrice ?? DEFAULT_ESTIMATED_COST_AUD
-}
-
 // Every fact in the returned Recommendation must trace back to `detail`
 // (Places) or `rank` (Gemini's pick + explanation) — never invented.
-function buildRecommendation(detail: PlaceDetail, rank: RankResult, group: GroupProfile, plan: SearchPlan): Recommendation {
+function buildRecommendation(detail: PlaceDetail, rank: RankResult, group: GroupProfile): Recommendation {
   const estimatedDistanceKm = haversineKm(group.center, detail.location)
-  const estimatedCostAud = estimateCostAud(detail.priceLevel, plan)
+  // Places priceLevel is ordinal, not an AUD amount. No factual AUD source
+  // means the cost must remain unknown rather than being converted.
+  const estimatedCostAud = null
   const bookingUrl = detail.website ?? detail.mapsUrl ?? null
 
   return RecommendationSchema.parse({
@@ -96,9 +80,10 @@ function buildRecommendation(detail: PlaceDetail, rank: RankResult, group: Group
     reason: rank.reason,
     estimatedCostAud,
     estimatedDistanceKm,
-    overBudgetPreference: estimatedCostAud > group.budgetAud,
+    overBudgetPreference: estimatedCostAud !== null && estimatedCostAud > group.budgetAud,
     overDistancePreference: estimatedDistanceKm > group.travelKm,
-    bookingRequired: detail.website !== null,
+    // Places does not prove that a website is a booking flow.
+    bookingRequired: false,
     bookingUrl,
     confidence: rank.confidence,
   })
@@ -130,8 +115,11 @@ async function attemptLive(group: GroupProfile, deps: AgentDeps): Promise<{ reco
   if (!candidateIds.has(detail.placeId)) {
     throw new VenueAgentError("Place detail placeId was not among the candidates Places returned for this request")
   }
+  if (isClosedBusinessStatus(detail.businessStatus)) {
+    throw new VenueAgentError("Selected Place is temporarily or permanently closed")
+  }
 
-  const recommendation = buildRecommendation(detail, rank, group, plan)
+  const recommendation = buildRecommendation(detail, rank, group)
   steps.push({ key: "selected", label: `Selected: ${recommendation.venueName}`, status: "done" })
 
   return { recommendation, steps }

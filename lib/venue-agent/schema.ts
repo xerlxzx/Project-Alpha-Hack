@@ -18,7 +18,7 @@ export const RecommendationSchema = z.object({
   placeId: z.string(),
   venueName: z.string(),
   reason: z.string(),
-  estimatedCostAud: z.number(),
+  estimatedCostAud: z.number().nullable(),
   estimatedDistanceKm: z.number(),
   overBudgetPreference: z.boolean(),
   overDistancePreference: z.boolean(),

@@ -10,6 +10,7 @@ export interface VenueDetail {
   address: string | null
   openNow: boolean | null
   mapsUrl: string | null
+  photoUrl: string | null
 }
 
 /**
@@ -32,6 +33,7 @@ export async function getVenueDetail(placeId: string): Promise<VenueDetail | nul
       address: detail.address || null,
       openNow: detail.openNow ?? null,
       mapsUrl: detail.mapsUrl ?? null,
+      photoUrl: detail.photoUrl ?? null,
     }
   } catch {
     return null
