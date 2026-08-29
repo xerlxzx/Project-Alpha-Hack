@@ -2,11 +2,12 @@ import { GoogleGenAI } from "@google/genai"
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { GEMINI_MODEL, getEnv } from "@/lib/config"
+import { assertMeetupMember, getCurrentUser } from "@/lib/current-user"
 import { getAdminSupabase } from "@/lib/supabase/server"
 import { runVenueAgent, type AgentDeps, type GroupProfile } from "@/lib/venue-agent/agent"
 import { placeDetails, placesTextSearch, type PlaceCandidate } from "@/lib/venue-agent/places"
 import { SearchPlanSchema, type SearchPlan } from "@/lib/venue-agent/schema"
-import { buildGroupProfileForMeetup, getCurrentUserId } from "@/app/api/venue-agent/route"
+import { buildGroupProfileForMeetup } from "@/app/api/venue-agent/route"
 
 // What Gemini may contribute when re-ranking for a reroll: a pick from the
 // (already-filtered) candidates plus an explanation — never a venue fact.
@@ -89,7 +90,19 @@ function buildRerollDeps(excludePlaceId: string): AgentDeps {
 
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: meetupId } = await params
-  const userId = await getCurrentUserId()
+
+  // Authz gate: the caller must be a real member of this meetup. Resolved
+  // from the session (never from client-supplied input) and checked before
+  // any Gemini/Places work runs.
+  const currentUser = await getCurrentUser()
+  if (!currentUser) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  }
+  const userId = currentUser.id
+  if (!(await assertMeetupMember(userId, meetupId))) {
+    return NextResponse.json({ error: "not_a_member" }, { status: 403 })
+  }
+
   const supabase = getAdminSupabase()
 
   const { data: member, error: memberError } = await supabase
