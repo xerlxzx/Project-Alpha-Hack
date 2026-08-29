@@ -71,8 +71,8 @@
    not brown) with a muted-gold accent that reads like a jewelry highlight,
    the Linear/Apple-dark register. Colors only: typography and radius are
    unchanged. The site is dark-only, so the base palette lives on :root (no
-   light/dark split) while `next-themes` keeps `.dark` on <html> so the
-   `dark:` utility variants that tune the glass surfaces still fire. */
+   light/dark split); app/layout.tsx hardcodes `.dark` on <html> directly so
+   the `dark:` utility variants that tune the glass surfaces still fire. */
 :root {
   --background: oklch(0.15 0.004 90);
   --foreground: oklch(0.955 0.004 95);
@@ -88,12 +88,12 @@
   --muted: oklch(0.242 0.005 92);
   --muted-foreground: oklch(0.705 0.008 92);
   --surface: #171512; /* deep warm-neutral; page bg on some routes, glass fallback + backing */
-  /* Muted gold / ochre accent for every CTA, link, and active state. Dark
-     foreground so text stays legible on the solid gold fill. */
-  --accent: #c9ad6e;
-  --accent-foreground: #201b0f;
-  --accent-hover: #d4ba7d;
-  --accent-active: #dfc78f;
+  /* Brighter amber accent (matches the onboarding flow) for every CTA, link,
+     and active state. Dark foreground so text stays legible on the solid fill. */
+  --accent: #e79913;
+  --accent-foreground: #1f1503;
+  --accent-hover: #f0aa32;
+  --accent-active: #cc820b;
   --cat-blue: #4a6076;
   --cat-sage: #5f6f4a;
   --cat-clay: #7e5742;
@@ -111,7 +111,7 @@
   --info-foreground: #ffffff;
   --border: oklch(0.9 0.01 92 / 10%);
   --input: oklch(0.9 0.01 92 / 14%);
-  --ring: oklch(0.72 0.05 87);
+  --ring: #e79913;
   --chart-1: oklch(0.8 0.095 85);
   --chart-2: oklch(0.68 0.05 80);
   --chart-3: oklch(0.55 0.03 85);
@@ -128,19 +128,14 @@
   --sidebar-ring: oklch(0.72 0.05 87);
 }
 
-/* The onboarding flow uses the brighter amber selected in the design review.
-   Keep the override route-scoped so every accent-backed control in the flow
-   stays consistent without changing the established palette elsewhere. */
+/* The onboarding flow (and the meetup detail page) render on pure black
+   instead of the default charcoal surface. Accent now matches the root
+   palette, so this only needs to override background/surface tokens. */
 .onboarding-theme {
   --background: #000000;
   --card: #000000;
   --popover: #000000;
   --surface: #000000;
-  --accent: #e79913;
-  --accent-foreground: #1f1503;
-  --accent-hover: #f0aa32;
-  --accent-active: #cc820b;
-  --ring: #e79913;
 }
 
 html:has(.onboarding-theme),

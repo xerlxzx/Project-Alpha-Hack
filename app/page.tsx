@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import Image from "next/image";
 
 import { AuthPanel } from "@/components/AuthPanel";
 import { DemoLogin } from "@/components/DemoLogin";
@@ -17,8 +18,6 @@ export default function LandingPage() {
 
   return (
     <div className="dark relative isolate flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-black px-6 py-16 text-foreground">
-      {/* Animated WebGL halftone hero (21st.dev). Sandboxed iframe, so it must
-          never capture pointer events — clicks pass through to the CTAs. */}
       <HalftoneFlow className="pointer-events-none absolute inset-0 -z-20 h-full w-full" />
       {/* Legibility scrim: darken the busy flow behind the copy and CTAs. */}
       <div
@@ -33,6 +32,10 @@ export default function LandingPage() {
         data-landing-void
         className="relative z-10 flex w-full max-w-md flex-col items-center text-center"
       >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -inset-x-10 -inset-y-8 -z-10 rounded-3xl bg-black/[0.08] backdrop-blur-[3px]"
+        />
         <motion.h1
           variants={riseItem}
           className="font-display text-6xl font-semibold tracking-tight text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.6)] sm:text-7xl"
@@ -81,8 +84,19 @@ export default function LandingPage() {
         </AnimatePresence>
       </motion.div>
 
-      <Reveal delay={0.1} className="relative z-10 mt-16 text-center text-xs text-white/50">
-        Prototype for SYNCS Hack 2026 · Seeded data, real venues.
+      <Reveal
+        delay={0.1}
+        className="relative z-10 mt-16 flex items-center gap-2 rounded-xl bg-black/[0.1] px-4 py-2.5 font-mono uppercase tracking-[0.16em] backdrop-blur-[3px]"
+      >
+        <span className="text-[10px] text-white/55">From</span>
+        <Image
+          src="/metadataindex-logo.png"
+          alt=""
+          width={501}
+          height={204}
+          className="h-3.5 w-auto"
+        />
+        <span className="text-[10px] text-white/80">MetadataIndex</span>
       </Reveal>
     </div>
   );
