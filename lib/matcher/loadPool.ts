@@ -72,6 +72,7 @@ interface PreferencesRow {
   budget_aud: number | null
   hobbies: string[]
   interests: string[]
+  gender: string | null
   gender_pref: string | null
   language_pref: string | null
   accessibility: string | null
@@ -112,6 +113,7 @@ function toPreferences(row: PreferencesRow): Preferences {
     budgetAud: row.budget_aud,
     hobbies: row.hobbies,
     interests: row.interests,
+    gender: row.gender,
     genderPref: row.gender_pref,
     languagePref: row.language_pref,
     accessibility: row.accessibility,
@@ -122,6 +124,42 @@ function toPreferences(row: PreferencesRow): Preferences {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
+}
+
+function normalisePreference(value: string | null | undefined): string | null {
+  const normalised = value?.trim().toLowerCase().replace(/\s+/g, " ")
+  return normalised || null
+}
+
+export function accessibilityCompatible(
+  activeNeed: string | null | undefined,
+  candidateNeed: string | null | undefined
+): boolean {
+  const required = normalisePreference(activeNeed)
+  if (!required) return true
+  return normalisePreference(candidateNeed) === required
+}
+
+const EXCLUDED_ACTIVITY_PATTERNS = [
+  /\balcohol\b/,
+  /\bdrinking\b/,
+  /\bpub crawl\b/,
+  /\bbar crawl\b/,
+  /\bwine tasting\b/,
+  /\bprivate home\b/,
+  /\bhouse party\b/,
+  /\bovernight\b/,
+  /\bsleepover\b/,
+  /\bskydiv(?:e|ing)\b/,
+  /\bbungee\b/,
+  /\bparticipant'?s? (?:car|vehicle)\b/,
+]
+
+export function activitySignalsAllowed(signals: string[]): boolean {
+  return signals.every((signal) => {
+    const normalised = signal.trim().toLowerCase()
+    return !EXCLUDED_ACTIVITY_PATTERNS.some((pattern) => pattern.test(normalised))
+  })
 }
 
 function toAvailabilityWindow(row: AvailabilityWindowRow): AvailabilityWindow {
@@ -245,7 +283,7 @@ export async function loadMatchInputs(
     supabase
       .from("preferences")
       .select(
-        "user_id, travel_km, budget_aud, hobbies, interests, gender_pref, language_pref, accessibility, social_energy, weekly_goal, area_lat, area_lng, created_at, updated_at"
+        "user_id, travel_km, budget_aud, hobbies, interests, gender, gender_pref, language_pref, accessibility, social_energy, weekly_goal, area_lat, area_lng, created_at, updated_at"
       ),
     supabase.from("availability_windows").select("id, user_id, start_at, end_at, mode, created_at"),
   ])
@@ -305,13 +343,9 @@ export async function loadMatchInputs(
         id: userId,
         verified: userRow.is_verified,
         ageOk: userRow.is_over_18,
-        // Both gates below are meaningfully evaluated once a specific venue
-        // exists (PRD §9.8/§14 "no suitable venue" / excluded-activities
-        // list) — there is no proposed venue yet at match time, so neither
-        // has a real signal to check against and both default to true.
         safetyProhibited: safetyProhibitedIds.has(userId),
-        accessibilityMet: true,
-        activityAllowed: true,
+        accessibilityMet: accessibilityCompatible(activePreferences.accessibility, userPreferences.accessibility),
+        activityAllowed: activitySignalsAllowed([...userPreferences.hobbies, ...userPreferences.interests]),
         availability: availabilityByUser.get(userId) ?? [],
         priorFeedback: priorFeedbackById.get(userId),
         reliability: reliabilityById.get(userId),

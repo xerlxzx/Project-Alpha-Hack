@@ -32,6 +32,31 @@ const GROUP_MIN = 3
 const GROUP_TARGET = 4
 const GROUP_MAX = 6
 
+const GENDER_PLURALS: Record<string, string> = {
+  man: "men",
+  woman: "women",
+}
+
+export function describeGenderMix(genders: Array<string | null | undefined>): string {
+  const counts = new Map<string, number>()
+  for (const gender of genders) {
+    const label = gender?.trim().toLowerCase() || "undisclosed"
+    counts.set(label, (counts.get(label) ?? 0) + 1)
+  }
+
+  return [...counts.entries()]
+    .sort(([labelA, countA], [labelB, countB]) => {
+      if (labelA === "undisclosed") return 1
+      if (labelB === "undisclosed") return -1
+      return countB - countA || labelA.localeCompare(labelB)
+    })
+    .map(([label, count]) => {
+      const displayLabel = count === 1 ? label : (GENDER_PLURALS[label] ?? label)
+      return `${count} ${displayLabel}`
+    })
+    .join(", ")
+}
+
 function windowOverlapMs(a: AvailabilityWindow, b: AvailabilityWindow): number {
   const start = Math.max(new Date(a.startAt).getTime(), new Date(b.startAt).getTime())
   const end = Math.min(new Date(a.endAt).getTime(), new Date(b.endAt).getTime())

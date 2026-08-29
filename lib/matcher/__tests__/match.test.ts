@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { AvailabilityWindow, Preferences, Profile } from "@/lib/types"
-import { buildMatch } from "@/lib/matcher/match"
+import { buildMatch, describeGenderMix } from "@/lib/matcher/match"
+import { accessibilityCompatible, activitySignalsAllowed } from "@/lib/matcher/loadPool"
 
 type ActiveUser = Parameters<typeof buildMatch>[0]
 type PoolMember = Parameters<typeof buildMatch>[1][number]
@@ -154,5 +155,44 @@ describe("buildMatch", () => {
 
     expect(result.status).toBe("ready")
     expect(result.explanation.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it("fails the accessibility gate when an active need is not shared by a candidate", () => {
+    const activeUser = makeActiveUser({ accessibility: "wheelchair access" })
+    const pool = [
+      makePoolMember("cand-1", { accessibility: null, accessibilityMet: false }),
+      makePoolMember("cand-2", { accessibility: "wheelchair access", accessibilityMet: true }),
+      makePoolMember("cand-3", { accessibility: "wheelchair access", accessibilityMet: true }),
+      makePoolMember("cand-4", { accessibility: "wheelchair access", accessibilityMet: true }),
+    ]
+
+    const result = buildMatch(activeUser, pool, makeCtx())
+
+    expect(result.members.some((member) => member.userId === "cand-1")).toBe(false)
+  })
+})
+
+describe("describeGenderMix", () => {
+  it("returns deterministic aggregate counts without identity fields", () => {
+    expect(describeGenderMix(["woman", "man", "woman", "non-binary"])).toBe(
+      "2 women, 1 man, 1 non-binary"
+    )
+  })
+
+  it("reports undisclosed genders as an aggregate", () => {
+    expect(describeGenderMix(["woman", null, undefined])).toBe("1 woman, 2 undisclosed")
+  })
+})
+
+describe("pool gate signal derivation", () => {
+  it("fails closed when a candidate does not share the active accessibility need", () => {
+    expect(accessibilityCompatible("wheelchair access needed", null)).toBe(false)
+    expect(accessibilityCompatible("Wheelchair access needed", " wheelchair access needed ")).toBe(true)
+    expect(accessibilityCompatible(null, "wheelchair access needed")).toBe(true)
+  })
+
+  it("rejects explicit excluded activity signals without rejecting ordinary interests", () => {
+    expect(activitySignalsAllowed(["wine tasting", "food exploration"])).toBe(false)
+    expect(activitySignalsAllowed(["basketball", "food exploration"])).toBe(true)
   })
 })

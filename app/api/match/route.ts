@@ -4,7 +4,7 @@
 // against an accepted group, as its own route.
 import { getAdminSupabase } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/current-user"
-import { buildMatch } from "@/lib/matcher/match"
+import { buildMatch, describeGenderMix } from "@/lib/matcher/match"
 import { loadMatchInputs, type MatchPoolMember, type RequestOverrides } from "@/lib/matcher/loadPool"
 
 // Who acts as "the active user" comes from lib/current-user.ts's session ->
@@ -170,10 +170,10 @@ export async function POST(request: Request): Promise<Response> {
     meetupId,
     status: "ready",
     groupSize: result.members.length + 1,
-    // No gender-identity field exists anywhere in the schema (`gender_pref`
-    // on `preferences` is a partner-gender filter, not the user's own
-    // gender) — nothing to compute this from without fabricating data.
-    genderMix: "not tracked — no gender field in current schema",
+    genderMix: describeGenderMix([
+      activeUser.gender,
+      ...result.members.map((member) => poolById.get(member.userId)?.gender),
+    ]),
     members: anonymisedMembers,
     explanation: result.explanation,
   }
