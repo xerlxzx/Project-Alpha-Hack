@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { CalendarClock, MapPin, ShieldAlert, UserRoundX, UserX } from "lucide-react"
+import { CalendarClock, CheckCircle2, MapPin, ShieldAlert, UserRoundX, UserX } from "lucide-react"
 
 import { getAdminSupabase, getServerSupabase } from "@/lib/supabase/server"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -68,15 +68,6 @@ export default async function MeetupPage({
     notFound()
   }
 
-  if (meetup.status !== "confirmed") {
-    return (
-      <EmptyState
-        title="Not confirmed yet"
-        body="This meetup hasn't reached quorum, so there's nothing to reveal yet."
-      />
-    )
-  }
-
   const { data: memberRows } = await client
     .from("meetup_members")
     .select("user_id")
@@ -90,6 +81,19 @@ export default async function MeetupPage({
       <EmptyState
         title="Not your meetup"
         body="You're not a member of this confirmed meetup."
+      />
+    )
+  }
+
+  if (meetup.status === "completed") {
+    return <CompletedMeetup meetupId={id} />
+  }
+
+  if (meetup.status !== "confirmed") {
+    return (
+      <EmptyState
+        title="Not confirmed yet"
+        body="This meetup hasn't reached quorum, so there's nothing to reveal yet."
       />
     )
   }
@@ -288,6 +292,33 @@ function EmptyState({ title, body }: { title: string; body: string }) {
       <p className="text-sm text-muted-foreground">{body}</p>
       <Link href="/" className="text-sm font-medium text-accent hover:underline">
         ← Back home
+      </Link>
+    </main>
+  )
+}
+
+function CompletedMeetup({ meetupId }: { meetupId: string }) {
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-5 px-5 text-center">
+      <div className="grid size-14 place-items-center rounded-full bg-accent/10 text-accent">
+        <CheckCircle2 className="size-7" aria-hidden />
+      </div>
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+          Meetup complete
+        </p>
+        <h1 className="font-display text-3xl font-semibold text-foreground">
+          How did it feel?
+        </h1>
+        <p className="text-sm leading-6 text-muted-foreground">
+          A few private taps help shape your next match and update your Momentum.
+        </p>
+      </div>
+      <Link
+        href={`/meetup/${meetupId}/feedback`}
+        className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-7 text-base font-semibold text-accent-foreground shadow-lg shadow-accent/25 transition-transform motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0"
+      >
+        Give feedback
       </Link>
     </main>
   )
