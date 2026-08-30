@@ -56,6 +56,27 @@ export async function assertMeetupMember(userId: string, meetupId: string): Prom
   return data !== null
 }
 
+/**
+ * Authoritative group-membership check, mirroring assertMeetupMember. The
+ * admin client supports the sessionless demo user the same way.
+ */
+export async function assertGroupMember(userId: string, groupId: string): Promise<boolean> {
+  const supabase = getAdminSupabase()
+  const { data, error } = await supabase
+    .from("group_members")
+    .select("id")
+    .eq("group_id", groupId)
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .maybeSingle()
+
+  if (error) {
+    return false
+  }
+
+  return data !== null
+}
+
 export interface ActiveMeetup {
   id: string
   status: "forming" | "confirmed"

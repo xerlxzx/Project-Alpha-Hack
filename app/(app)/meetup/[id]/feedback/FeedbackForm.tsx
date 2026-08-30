@@ -112,7 +112,7 @@ export function FeedbackForm({
   }
 
   function finishSuccess() {
-    router.push("/profile")
+    router.push(`/meetup/${meetupId}/continue`)
   }
 
   return (

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { assertMeetupMember, getCurrentUser } from "@/lib/current-user"
+import { allowAiRequest } from "@/lib/rate-limit"
 import { getAdminSupabase } from "@/lib/supabase/server"
 import { placeDetails } from "@/lib/venue-agent/places"
 import { runVenueAgent, type GroupProfile } from "@/lib/venue-agent/agent"
@@ -134,6 +135,10 @@ export async function POST(request: Request) {
   }
   if (!(await assertMeetupMember(currentUser.id, meetupId))) {
     return NextResponse.json({ error: "not_a_member" }, { status: 403 })
+  }
+
+  if (!(await allowAiRequest())) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 })
   }
 
   let group: GroupProfile

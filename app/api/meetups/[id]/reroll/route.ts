@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { GEMINI_MODEL, getEnv } from "@/lib/config"
 import { assertMeetupMember, getCurrentUser } from "@/lib/current-user"
+import { allowAiRequest } from "@/lib/rate-limit"
 import { getAdminSupabase } from "@/lib/supabase/server"
 import { runVenueAgent, type AgentDeps, type GroupProfile } from "@/lib/venue-agent/agent"
 import { placeDetails, placesTextSearch, type PlaceCandidate } from "@/lib/venue-agent/places"
@@ -118,6 +119,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   // One reroll per member. Checked before any agent work runs.
   if (member.reroll_used) {
     return NextResponse.json({ error: "reroll_already_used" }, { status: 409 })
+  }
+
+  if (!(await allowAiRequest())) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 })
   }
 
   const { data: priorRecommendation, error: priorError } = await supabase

@@ -40,6 +40,11 @@ export const EXPLORATION_POLICY = {
   afterThreeMeetups: { familiar: 0.7, exploratory: 0.3 },
 } as const
 
+// Global (all-users) cap on requests per UTC day across the routes that
+// spend Gemini/Places quota (venue-agent, meetups/[id]/reroll, feedback).
+// See lib/rate-limit.ts.
+export const AI_REQUEST_DAILY_LIMIT = 100
+
 export const REQUIRED_ENV = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",

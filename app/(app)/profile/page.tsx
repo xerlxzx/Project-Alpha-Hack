@@ -1,4 +1,6 @@
+import Link from "next/link"
 import { redirect } from "next/navigation"
+import { UsersRound } from "lucide-react"
 
 import { getServerSupabase, getAdminSupabase } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/current-user"
@@ -76,6 +78,14 @@ export default async function ProfilePage() {
         .maybeSingle(),
       supabase.from("badges").select("code").eq("user_id", userId),
     ])
+
+  const { data: activeGroupMembership } = await supabase
+    .from("group_members")
+    .select("group_id")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle()
 
   const events = (eventRows ?? []).map(toMomentumEvent)
   const weeklyGoal = prefRow?.weekly_goal ?? 0
@@ -159,6 +169,23 @@ export default async function ProfilePage() {
           className="w-full border-t border-border pt-6"
         />
       </GlassPanel>
+
+      {activeGroupMembership && (
+        <Link
+          href={`/group/${activeGroupMembership.group_id}`}
+          className="flex items-center gap-3 rounded-2xl border border-accent/30 bg-accent/5 p-4 transition-colors hover:border-accent/50"
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
+            <UsersRound className="size-5" aria-hidden />
+          </span>
+          <span className="flex flex-col">
+            <span className="font-heading text-sm font-semibold text-foreground">Your group</span>
+            <span className="text-xs text-muted-foreground">
+              See this week&apos;s activity, or organize a new one
+            </span>
+          </span>
+        </Link>
+      )}
 
       <ConnectionMap />
 

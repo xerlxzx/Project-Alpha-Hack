@@ -5,6 +5,7 @@ import { z } from "zod"
 
 import { GEMINI_MODEL, getEnv } from "@/lib/config"
 import { assertMeetupMember, getCurrentUser, type CurrentUser } from "@/lib/current-user"
+import { allowAiRequest } from "@/lib/rate-limit"
 import { getAdminSupabase, getServerSupabase } from "@/lib/supabase/server"
 
 // The seeded demo IDs are valid Postgres UUID values with a zero version
@@ -426,9 +427,17 @@ export async function POST(request: Request) {
       persisted = existing
     } else {
       const trimmedNote = note.trim()
-      const interpretation = trimmedNote
+      // Feedback itself always saves even when the day's Gemini/Places
+      // quota (lib/rate-limit.ts) is spent — same graceful-degradation
+      // shape as a Gemini call failure below, just a different cause.
+      const interpretation = trimmedNote && (await allowAiRequest())
         ? await derivePreferenceSignal(trimmedNote)
-        : { signal: null, warning: null }
+        : trimmedNote
+          ? {
+              signal: null,
+              warning: "Your feedback was saved, but the private note could not be interpreted yet.",
+            }
+          : { signal: null, warning: null }
       const selectedPeople = parsed.data.people.filter(
         (person) => person.meetAgain || person.avoidRematch
       )
