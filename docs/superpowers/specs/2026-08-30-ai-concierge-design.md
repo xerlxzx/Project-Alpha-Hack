@@ -1,17 +1,18 @@
-# AI Concierge: Design Spec
+# AI Concierge — Design Spec
 
 Date: 2026-08-30
-Status: Approved, pending implementation plan
+Status: Approved, implemented on branch `ai-concierge`
 
 ## Problem
 
 The home page's hero has a free-text "concierge" input box (already shipped as
 UI-only, see `app/(app)/home/page.tsx`'s `ConciergeBox`). Today, submitting it
-shows a "still warming up" placeholder message. This spec wires it to a real
-feature. A user can type *"I'm tired, have 90 minutes, don't want anything
-intense, and want to meet two people near campus."* The concierge interprets
-the request, finds a matching group and venue, explains the match, and drafts
-an opening message before the user commits.
+just shows a "still warming up" placeholder message. This spec covers wiring
+it to a real feature: the user types something like *"I'm tired, have 90
+minutes, don't want anything intense, and want to meet two people near
+campus"*, and the concierge interprets that, finds a real matching group and
+venue, explains why, and drafts an opening message for the group chat — all
+before committing to anything.
 
 ## Constraints from the existing codebase
 
@@ -26,233 +27,131 @@ an opening message before the user commits.
   disclosed before a candidate accepts. This is a hard existing boundary, not
   a default to relax for this feature.
 - **No second ad-hoc path** (`CLAUDE.md`): don't duplicate a mechanism that
-  exists, such as a second "compute a match" or "get a group profile"
-  implementation. Extract and share the existing mechanism.
+  already exists (e.g. a second "compute a match" or "get a group profile"
+  implementation) — extract and share instead.
 
-## Resolved decisions
+## Decisions (confirmed with the user)
 
-1. **Anonymized explanation.** The concierge does not name candidates before
-   acceptance. It can say "two people nearby who prefer low-pressure study
-   sessions." Names appear through the existing reveal flow after acceptance.
-2. **A preview binds to one group.** The preview route writes no domain rows
-   and sends no notifications. It returns an encrypted, authenticated token
-   that contains the normalized request and ordered candidate IDs. The token
-   expires after five minutes. "Lock it in" revalidates those candidates. A
-   changed pool produces `409 preview_stale` before any write.
-3. **Group-size values include the active user.** `GROUP_MIN = 3`,
-   `GROUP_TARGET = 4`, and `GROUP_MAX = 6` describe the whole group. A request
-   to "meet two people" produces a target group size of three. `buildMatch`
-   selects `targetGroupSize - 1` candidates and reports insufficient when
-   fewer than `GROUP_MIN - 1` candidates pass the gates. This corrects the
-   current implementation, which treats the constants as candidate counts.
-4. **The concierge supports bounded place, travel, and budget intent.**
-   `locationMode: "profile_area"` uses the user's saved area.
-   `locationMode: "campus"` uses a deterministic campus-center allowlist
-   keyed by the user's university. The interpreter marks other named places as
-   `"unsupported"`. The route returns `422 unsupported_location` for an
-   unknown campus or unsupported place. The model cannot supply coordinates.
-5. **The requested activity reaches venue search.** Deterministic code checks
-   the activity policy. The venue agent receives the accepted activity text as
-   an explicit `activityIntent` after that check.
-6. **The pipeline stays single-shot.** One free-text submission interprets,
-   matches, recommends, explains, and drafts an opener. This version does not
-   add a clarification chat.
-7. **The venue remains illustrative.** Confirmation pins the group and request
-   constraints, but the post-acceptance Places search can select another venue.
-   Both searches use the same activity, center, travel, budget, and
-   accessibility constraints.
-8. **Fallback venues carry a label.** A live Places result appears as
-   "Recommended venue." A cached fallback appears as "Example nearby option."
+1. **Anonymized explanation.** The concierge's explanation never names
+   candidates pre-acceptance ("two people nearby who both prefer low-pressure
+   study sessions", not "Maya and Jordan"). Names appear later exactly the way
+   they already do today, once a candidate accepts.
+2. **Preview, then explicit confirm.** Submitting a concierge prompt runs the
+   real deterministic matcher and venue agent to build a genuine preview card,
+   but writes nothing to the database and notifies no one until the user taps
+   a separate "Lock it in" action.
+3. **Group size is a clamped hint.** A parsed group-size request (e.g. "meet
+   two people") is honored by clamping into the existing
+   `[GROUP_MIN, GROUP_MAX]` = `[3, 6]` range. If the pool can't fill even the
+   minimum, the existing "insufficient" state/copy is shown.
+4. **Single-shot pipeline.** One free-text submission runs
+   interpret → rank → recommend → explain → draft opener in one pass and
+   renders one result card. No multi-turn clarification chat in this pass.
+5. **Previewed venue is illustrative, not carried through.** This app already
+   defers real venue selection until after a group accepts
+   (`app/api/venue-agent/route.ts`, triggered post-acceptance). "Lock it in"
+   reuses the existing `/api/match` flow unchanged; it does not try to force
+   the previewed venue to be the one that's ultimately booked. The real,
+   post-acceptance venue-agent run may occasionally pick a different venue
+   than the preview did. This keeps the accepted-meetup venue flow completely
+   untouched.
 
 ## Architecture
 
-The preview and confirmation routes share the matcher, presentation helpers,
-and persistence function.
+Reuse the existing deterministic pipeline via a preview/confirm split, adding
+a thin Gemini interpretation layer before it and a synthesis layer after it.
+No parallel matching implementation.
 
 ```
 ConciergeBox (client)
   -> POST /api/concierge { text }
-       1. validate text length and resolve the current user
-       2. interpretIntent(text)                    [Gemini, Zod, one retry]
-       3. normalizeIntent(intent, user)
-            - apply documented defaults
-            - resolve profile/campus center in TypeScript
-            - reject unsupported campus values
-       4. loadMatchInputs + buildMatch(..., targetGroupSize)
-            - insufficient -> loadInsufficientContext()
-            - ready -> continue with the ordered candidate IDs
-       5. buildGroupProfileFromMembers(allMembers, options)
-       6. runVenueAgent(group)
-       7. synthesizeExplanation(allowlistedFacts)
-       8. sealPreviewToken({
-            userId, expiresAt, normalizedRequest, candidateIds,
-            venueConstraints
-          })                                      [AES-256-GCM]
-       <- ConciergePreview                         [no domain write]
-
+       1. interpretIntent(text)                [Gemini, Zod-validated, 1 retry]
+       2. targetSize = intent.groupSizeHint == null ? undefined
+                        : clamp(intent.groupSizeHint + 1, GROUP_MIN, GROUP_MAX)
+          loadMatchInputs + buildMatch(..., targetSize)   [existing, pure, unchanged shape]
+            -> insufficient? return existing insufficient shape
+            -> ready? continue
+       3. buildGroupProfileFromMembers(activeUser, matchedMembers)  [new shared helper, in-memory]
+       4. runVenueAgent(group)                  [existing, unchanged]
+       5. synthesize(facts)                     [Gemini, Zod-validated, template fallback]
+       <- ConciergePreview (anonymized, nothing persisted)
   -> renders preview card: "Lock it in" | "Never mind"
-
-       "Lock it in" -> POST /api/match { previewToken }
-            1. resolve current user
-            2. decrypt token; check version, expiry, and userId
-            3. reload inputs with token.normalizedRequest
-            4. rerun buildMatch with token targetGroupSize
-            5. compare ordered candidate IDs
-                 mismatch -> 409 preview_stale, no write
-                 match    -> persistMatch() in one database transaction
-            6. return the existing ReadyResponse
-          -> router.push /match?meetupId=...
+       "Lock it in" -> POST /api/match (existing, unchanged) with the same
+                        derived duration/energy/activity/groupSizeHint
+                     -> router.push /match?meetupId=...  (existing flow)
 ```
-
-The direct home-page match flow keeps accepting `MatchRequestSchema`. The
-`/api/match` route also accepts the separate strict
-`PreviewConfirmationSchema`. A client cannot mix fields from both schemas.
-The confirmation path ignores client-supplied controls because the encrypted
-token carries the normalized request.
-
-`persistMatch()` calls one Supabase RPC that creates the meetup and its
-membership rows in one transaction. Both the direct match path and concierge
-confirmation use it. Concierge confirmation stores the preview's center,
-budget, and travel limit on the meetup. It stores `proposedActivity` in
-`meetups.activity_intent`. The RPC prevents an orphan meetup when a member
-insert fails.
 
 ### New files
 
-- `lib/concierge/schema.ts`: intent, synthesis, normalized-request, preview,
-  and token-payload schemas.
-- `lib/concierge/intent.ts`: builds the Gemini prompt and validates the
-  response. It retries once after malformed output, then throws
-  `ConciergeInterpretationError`.
-- `lib/concierge/normalize.ts`: applies defaults, resolves the requested
-  center, and produces `NormalizedConciergeRequest`.
-- `lib/concierge/location.ts`: owns `CAMPUS_CENTERS` and resolves a campus
-  from the authenticated user's university. It accepts no coordinates from
-  the model or browser.
-- `lib/concierge/previewToken.ts`: seals and opens versioned preview tokens
-  with AES-256-GCM and `CONCIERGE_PREVIEW_SECRET`. Tokens expose no candidate
-  IDs as readable client data.
-- `lib/concierge/synthesize.ts`: sends allowlisted facts to Gemini. It uses a
-  fixed template when generation or validation fails.
-- `lib/ai/generateJson.ts`: extracts the Gemini JSON generation and Zod
-  validation code from `lib/venue-agent/agent.ts`.
-- `lib/matcher/presentation.ts`: owns `AnonymisedMember`,
-  `sharedInterestsOf`, and the response builders used by both routes. Public
-  explanations use shared interests, availability, travel, and budget facts.
-  They exclude reliability, reports, feedback, and score breakdowns.
-- `lib/matcher/insufficient.ts`: owns the shared nearest-future and seeded
-  suggestion queries.
-- `lib/matcher/persist.ts`: calls the transactional match-persistence RPC and
-  returns the existing ready response data.
-- `lib/venue-agent/groupProfile.ts`: exports
-  `buildGroupProfileFromMembers(members, options)`.
-- `app/api/concierge/route.ts`: orchestrates preview generation.
-- `supabase/migrations/00xx_concierge_confirmation.sql`: adds nullable
-  `venue_budget_aud` and `venue_travel_km` meetup columns plus the
-  transaction used by `persistMatch()`.
+- `lib/concierge/schema.ts` — `ConciergeIntentSchema`, `ConciergeSynthesisSchema` (Zod).
+- `lib/concierge/intent.ts` — `interpretIntent(text, deps)`: builds the Gemini
+  prompt, validates the JSON response against `ConciergeIntentSchema`. One
+  retry on failure, then throws a typed error the route turns into a clear
+  "couldn't understand that, try rephrasing" response — never guesses.
+- `lib/concierge/synthesize.ts` — `synthesizeExplanation(facts, deps)`: one
+  Gemini call fed *only* already-computed deterministic facts (shared-interest
+  reasons, group size, venue name/reason/distance, duration, mood summary).
+  Prompt explicitly forbids introducing any fact not present in the input. On
+  failure, falls back to a fixed template built directly from `facts` — this
+  step must never block the preview.
+- `lib/ai/generateJson.ts` — extraction of the small "call Gemini, parse JSON,
+  validate against a Zod schema" helper currently inlined in
+  `lib/venue-agent/agent.ts`'s `buildDefaultDeps`, so `interpretIntent` and
+  `synthesizeExplanation` share it instead of re-implementing GoogleGenAI
+  wiring a third time.
+- `lib/matcher/anonymize.ts` — extraction of `AnonymisedMember` and
+  `sharedInterestsOf` out of `app/api/match/route.ts` so `/api/concierge`
+  reuses the exact same anonymization instead of a parallel copy.
+- `lib/venue-agent/groupProfile.ts` — extraction of the aggregation logic
+  inside `app/api/venue-agent/route.ts`'s `buildGroupProfileForMeetup` into a
+  pure `buildGroupProfileFromMembers(members, options)` helper. The existing
+  DB-backed function becomes a thin wrapper: load rows, then call the shared
+  pure helper. The concierge preview calls the same pure helper directly on
+  data it already has in memory (no extra DB round-trip).
+- `app/api/concierge/route.ts` — orchestrates the flow above.
 
 ### Changed files
 
-- `lib/matcher/match.ts`: exports the group-size constants, treats them as
-  whole-group sizes, accepts `targetGroupSize`, and breaks score ties by user
-  ID so preview and confirmation produce a stable order.
-- `lib/matcher/loadPool.ts`: accepts a server-created center override for the
-  active user. `MatchRequestSchema` does not expose raw coordinates.
-- `lib/matcher/request.ts`: keeps `MatchRequestSchema` and adds a separate
-  strict `PreviewConfirmationSchema`.
-- `app/api/match/route.ts`: dispatches between direct matching and token
-  confirmation, then uses the shared presentation, insufficient, and
-  persistence helpers.
-- `lib/venue-agent/agent.ts`: adds `activityIntent` to `GroupProfile`, uses
-  it in the search-plan prompt, and retains `mapsUrl` from Place Details.
-- `lib/venue-agent/schema.ts` and `lib/venue-agent/fallback.ts`: add the
-  nullable `mapsUrl` field.
-- `app/api/venue-agent/route.ts`: loads `activity_intent`, meetup tags,
-  center, `venue_budget_aud`, and `venue_travel_km`, then calls the shared
-  group-profile helper. Stored concierge constraints take precedence. Member
-  aggregation remains the fallback for existing and direct-match meetups.
-- `app/(app)/home/page.tsx`: keeps `startMatch` for the current controls.
-  `ConciergeBox` owns a separate preview state and posts `previewToken` when
-  the user chooses "Lock it in." "Never mind" drops the token and clears the
-  input.
-- `lib/config.ts` and `.env.example`: add
-  `CONCIERGE_PREVIEW_SECRET` as a base64-encoded 32-byte key.
+- `lib/matcher/match.ts` — `buildMatch` gains an optional `targetSize`
+  parameter, clamped to `[GROUP_MIN, GROUP_MAX]`, defaulting to the current
+  `GROUP_TARGET` so every existing caller is unaffected.
+- `app/api/match/route.ts` — imports `AnonymisedMember`/`sharedInterestsOf`
+  from `lib/matcher/anonymize.ts` instead of defining them locally (no
+  behavior change).
+- `app/api/venue-agent/route.ts` — `buildGroupProfileForMeetup` becomes a thin
+  wrapper around the new shared `buildGroupProfileFromMembers` (no behavior
+  change).
+- `app/(app)/home/page.tsx` — `ConciergeBox` actually calls `/api/concierge`
+  on submit; shows a loading state while the request is in flight; renders the
+  returned preview as a card (reusing `GlassPanel`) with "Lock it in" (calls
+  the same `startMatch` already defined on the page, with controls derived
+  from the parsed intent) and "Never mind" (discards the preview, clears the
+  input).
 
 ## Data contracts
 
 ```ts
 // lib/concierge/schema.ts
-ConciergeRequestSchema = z.object({
-  text: z.string().trim().min(1).max(500),
-}).strict()
-
 ConciergeIntentSchema = z.object({
-  moodSummary: z.string().trim().min(1).max(160),
-  maxDurationMin: z.number().int().min(30).max(240).nullable(),
+  moodSummary: z.string(),          // short paraphrase, e.g. "low-energy, wants something calm"
+  maxDurationMin: z.number().int().positive(),
   groupSizeHint: z.number().int().min(1).max(5).nullable(), // "other people", not counting the user
-  proposedActivity: z.string().trim().min(1).max(120).nullable(),
+  proposedActivity: z.string().nullable(),
   socialEnergy: z.enum(["low", "medium", "high"]).nullable(),
-  startMode: z.enum(["now", "future"]),
-  locationMode: z.enum(["profile_area", "campus", "unsupported"]).nullable(),
-  maxTravelKm: z.number().min(1).max(30).nullable(),
-  maxBudgetAud: z.number().min(0).max(1000).nullable(),
 })
+// groupSizeHint -> buildMatch's targetSize is `groupSizeHint + 1` (self
+// included), clamped to [GROUP_MIN, GROUP_MAX] = [3, 6]. `null` means no
+// preference, so targetSize is omitted and buildMatch uses its own default.
 //
-// normalizeIntent applies these rules:
-// - null maxDurationMin -> 120
-// - null groupSizeHint -> GROUP_TARGET
-// - groupSizeHint + 1 -> clamp to [GROUP_MIN, GROUP_MAX]
-// - null socialEnergy/travel/budget -> retain the saved preference
-// - null locationMode -> "profile_area"
-// - "campus" -> resolve from CAMPUS_CENTERS by the user's university
-// - "unsupported" -> 422 unsupported_location
-// - startMode "future" -> 422 unsupported_time_constraint
-// - an activity rejected by activitySignalsAllowed -> 422 unsupported_activity
-// - availability starts at preview creation and uses mode "im_free"
-//
-// The model reports missing values as null. It does not invent defaults.
-// Future-time requests remain out of scope and produce
-// `422 unsupported_time_constraint`.
+// No start-time field: the concierge always means "I'm free right now" (same
+// semantics as the page's existing "im_free" mode / StartChoice "now"),
+// consistent with every example in this spec. A user who wants to plan ahead
+// already has the existing "Plan ahead" sheet for that — the concierge isn't
+// a second path for scheduling.
 
 ConciergeSynthesisSchema = z.object({
-  explanation: z.string().trim().min(1).max(500),
-  opener: z.string().trim().min(1).max(500),
-})
-
-NormalizedConciergeRequestSchema = z.object({
-  availability: z.tuple([z.object({
-    startAt: z.iso.datetime({ offset: true }),
-    endAt: z.iso.datetime({ offset: true }),
-    mode: z.literal("im_free"),
-  })]),
-  targetGroupSize: z.number().int().min(GROUP_MIN).max(GROUP_MAX),
-  travelKm: z.number().min(1).max(30).nullable(),
-  budgetAud: z.number().min(0).max(1000).nullable(),
-  socialEnergy: z.enum(["low", "medium", "high"]).nullable(),
-  proposedActivity: z.string().trim().min(1).max(120).nullable(),
-  preferredCenter: z.object({
-    lat: z.number().min(-90).max(90),
-    lng: z.number().min(-180).max(180),
-  }),
-})
-
-PreviewTokenPayloadSchema = z.object({
-  version: z.literal(1),
-  userId: z.uuid(),
-  issuedAt: z.iso.datetime({ offset: true }),
-  expiresAt: z.iso.datetime({ offset: true }),
-  normalizedRequest: NormalizedConciergeRequestSchema,
-  candidateIds: z.array(z.uuid()).min(GROUP_MIN - 1).max(GROUP_MAX - 1),
-  venueConstraints: z.object({
-    center: z.object({
-      lat: z.number().min(-90).max(90),
-      lng: z.number().min(-180).max(180),
-    }),
-    budgetAud: z.number().min(0).max(1000),
-    travelKm: z.number().min(1).max(30),
-    activityIntent: z.string().trim().min(1).max(120).nullable(),
-  }),
-  relaxAvailability: z.boolean(),
+  explanation: z.string(),
+  opener: z.string(),
 })
 ```
 
@@ -260,81 +159,73 @@ PreviewTokenPayloadSchema = z.object({
 // app/api/concierge/route.ts response shape
 interface ConciergePreview {
   status: "preview"
-  previewToken: string
-  expiresAt: string
   intentSummary: string
   groupSize: number
   genderMix: string
-  sharedInterestReasons: string[]
-  venue: {
-    name: string
-    reason: string
-    distanceKm: number
-    mapsUrl: string | null
-    source: "live" | "fallback"
-  }
+  sharedInterestReasons: string[]   // same shape as today's ReadyResponse.explanation
+  venue: { name: string; reason: string; distanceKm: number; mapsUrl: string | null }
   explanation: string
   opener: string
+  // everything needed for "Lock it in" to call the real /api/match unchanged
+  // (startAt is always "now", per the no-start-time-field note above):
+  controls: { maxDurationMin: number; socialEnergy: string | null; proposedActivity: string | null }
 }
 // insufficient pool: reuses the existing InsufficientResponse shape as-is.
-
-// app/api/match/route.ts confirmation request
-PreviewConfirmationSchema = z.object({
-  previewToken: z.string().min(1).max(8192),
-}).strict()
 ```
-
-The serialized preview contains no candidate IDs outside the encrypted token.
-It also excludes names, photos, contact details, exact member locations,
-reliability, reports, and score breakdowns. Synthesis receives the same
-allowlist plus venue facts and the normalized user intent.
 
 ## Error handling
 
-- Invalid JSON, blank text, or text over 500 characters returns `400`.
-- A missing current user returns `401`.
-- Two failed intent parses return `422 cannot_interpret`.
-- Unknown campus and future-time constraints return a specific `422` code.
-- An insufficient pool returns the shared insufficient response.
-- The venue agent uses its retry and cached fallback. The preview exposes the
-  fallback source so the UI can label it.
-- Synthesis failure uses the deterministic template.
-- A malformed, tampered, or wrong-version token returns `400 invalid_preview`.
-- An expired token returns `410 preview_expired`; a user mismatch returns
-  `403 preview_owner_mismatch`.
-- A confirmation whose ordered candidate IDs no longer match returns
-  `409 preview_stale`. The UI discards the token and offers "Refresh preview."
-- The confirmation route performs no domain write before token and candidate
-  validation pass.
+- Intent interpretation fails twice → `422`-style error, UI shows "Couldn't
+  understand that — try rephrasing" with a retry action (mirrors the existing
+  `MatchOverlay` error state already on the page).
+- Deterministic pool insufficient → existing insufficient-state UI/copy,
+  unchanged.
+- Venue agent fails → falls through to its existing cached fallback
+  (`lib/venue-agent/fallback.ts`), already handled, no change needed here.
+- Synthesis fails → deterministic template fallback built from `facts`
+  directly; never surfaces as an error to the user.
 
 ## Testing
 
-- Matcher tests cover whole-group size semantics, clamping, the default group
-  of four, minimum quorum, stable tie ordering, and insufficient pools.
-- Normalization tests cover null defaults, duration bounds, group-size
-  conversion, saved preferences, known campuses, unknown campuses, named
-  places, future-time requests, and prohibited activities.
-- Token tests cover round trips, ciphertext privacy, tampering, expiry,
-  versions, and wrong-user confirmation.
-- Group-profile tests cover interests, budget/travel limits, accessibility,
-  activity intent, preferred center, and centroid fallback.
-- Venue-agent tests prove that the activity reaches the plan prompt and that
-  live and fallback recommendations retain `mapsUrl` and `source`.
-- Synthesis tests verify schema rejection, allowlisted facts, and the template
-  fallback.
-- Route tests verify authentication, input length, no preview writes,
-  anonymized serialization, exact-group confirmation, stale-preview rejection,
-  and no writes on each failure path.
-- Persistence tests verify that the RPC creates the meetup and all member rows
-  in one transaction.
-- A mobile manual test covers submit, preview, confirm, stale refresh,
-  insufficient pool, unknown campus, live venue, and fallback venue.
+- Vitest, matching `lib/matcher/__tests__/` and `lib/venue-agent/__tests__/`
+  conventions:
+  - `buildMatch`'s `targetSize` clamping (below min, above max, within range,
+    default unchanged).
+  - `buildGroupProfileFromMembers` aggregation (union of interests/hobbies,
+    budget/travel defaults, centroid).
+  - `ConciergeIntentSchema` / `ConciergeSynthesisSchema` parsing and rejection
+    of malformed Gemini output.
+  - `synthesizeExplanation` falls back to the template when injected `deps`
+    throw (same dependency-injection pattern `runVenueAgent(group, deps)`
+    already uses for testability).
+- Manual: `npm run dev`, mobile viewport, full submit → preview → "Lock it
+  in" → `/match?meetupId=...` flow, and the "insufficient" and error paths.
 
 ## Out of scope (explicitly deferred)
 
 - Multi-turn clarification chat.
 - Making the previewed venue binding through to acceptance.
 - The available/unavailable passive-matching toggle (separate spec).
-- Arbitrary place names, addresses, and model-generated coordinates.
-- Future-time scheduling through the concierge. The Plan ahead sheet remains
-  the scheduling path.
+
+## Provenance note (added post-implementation)
+
+While finishing this feature, the on-disk copy of this spec file was
+overwritten by an unrelated, independently-authored design (encrypted preview
+tokens, candidate-ID pinning + `409 preview_stale`, a corrected
+whole-group-inclusive `GROUP_MIN`/`GROUP_TARGET`/`GROUP_MAX` semantic, campus-
+center location resolution) committed to `main` at `e004d76` by a different
+Claude session. That design was never discussed with the user in the
+conversation that produced this spec and this implementation. The user was
+asked and explicitly chose to keep this implementation as authoritative for
+this branch; this file was restored to match what was actually designed,
+approved, and built here. Two points from that other design are worth
+revisiting later regardless of which implementation ships:
+- **Stale-pool race**: this implementation does not pin candidate identity
+  between preview and confirm — "Lock it in" simply re-runs the real matcher
+  fresh, so it can occasionally produce a different group than the one
+  previewed (still safe — never a bad/unsafe match, just a possible surprise).
+- **Group-size semantic ambiguity**: whether `GROUP_MIN`/`GROUP_TARGET`/
+  `GROUP_MAX` should count candidates only (this codebase's existing,
+  unchanged behavior, which this implementation preserves) or the whole group
+  including the active user (what the other design argues is a correction) is
+  a pre-existing ambiguity this implementation did not attempt to resolve.
