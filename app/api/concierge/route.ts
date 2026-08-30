@@ -6,7 +6,7 @@ import { z } from "zod"
 import { getAdminSupabase } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/current-user"
 import { buildMatch, describeGenderMix, GROUP_MIN, GROUP_MAX } from "@/lib/matcher/match"
-import { loadMatchInputs, type MatchPoolMember } from "@/lib/matcher/loadPool"
+import { loadMatchInputs, type MatchPoolMember, activitySignalsAllowed } from "@/lib/matcher/loadPool"
 import { interpretIntent, ConciergeIntentError } from "@/lib/concierge/intent"
 import { synthesizeExplanation } from "@/lib/concierge/synthesize"
 import { buildGroupProfileFromMembers, type MemberProfileInput } from "@/lib/venue-agent/groupProfile"
@@ -23,7 +23,13 @@ interface ConciergePreviewResponse {
   venue: { name: string; reason: string; distanceKm: number; mapsUrl: string | null }
   explanation: string
   opener: string
-  controls: { maxDurationMin: number; socialEnergy: "low" | "medium" | "high" | null; proposedActivity: string | null }
+  controls: {
+    maxDurationMin: number
+    socialEnergy: "low" | "medium" | "high" | null
+    proposedActivity: string | null
+    travelKm: number | null
+    budgetAud: number | null
+  }
 }
 
 interface ConciergeInsufficientResponse {
@@ -51,6 +57,11 @@ export async function POST(request: Request): Promise<Response> {
   const currentUser = await getCurrentUser()
   if (!currentUser) {
     return Response.json({ error: "Unauthenticated" }, { status: 401 })
+  }
+
+  if (!activitySignalsAllowed([parsedBody.data.text])) {
+    const response: ConciergeInsufficientResponse = { status: "insufficient" }
+    return Response.json(response)
   }
 
   let intent
@@ -133,6 +144,8 @@ export async function POST(request: Request): Promise<Response> {
       maxDurationMin: intent.maxDurationMin,
       socialEnergy: intent.socialEnergy,
       proposedActivity: intent.proposedActivity,
+      travelKm: activeUser.travelKm,
+      budgetAud: activeUser.budgetAud,
     },
   }
   return Response.json(response)

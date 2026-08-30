@@ -1,4 +1,6 @@
 import type { z } from "zod"
+import { GoogleGenAI } from "@google/genai"
+import { getEnv } from "@/lib/config"
 import { generateJson } from "@/lib/ai/generateJson"
 import { ConciergeIntentSchema, type ConciergeIntent } from "@/lib/concierge/schema"
 
@@ -22,7 +24,8 @@ function buildIntentPrompt(text: string): string {
 }
 
 function buildDefaultDeps(): IntentDeps {
-  return { generate: generateJson }
+  const client = new GoogleGenAI({ apiKey: getEnv("GEMINI_API_KEY") })
+  return { generate: (prompt, schema) => generateJson(client, prompt, schema) }
 }
 
 export async function interpretIntent(text: string, deps: IntentDeps = buildDefaultDeps()): Promise<ConciergeIntent> {

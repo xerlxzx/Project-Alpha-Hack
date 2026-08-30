@@ -306,7 +306,13 @@ interface ConciergePreview {
   venue: { name: string; reason: string; distanceKm: number; mapsUrl: string | null };
   explanation: string;
   opener: string;
-  controls: { maxDurationMin: number; socialEnergy: SocialEnergy | null; proposedActivity: string | null };
+  controls: {
+    maxDurationMin: number;
+    socialEnergy: SocialEnergy | null;
+    proposedActivity: string | null;
+    travelKm: number | null;
+    budgetAud: number | null;
+  };
 }
 
 interface ConciergeInsufficient {
@@ -629,8 +635,11 @@ export default function HomePage() {
             "im_free",
             {
               ...controls,
+              startChoice: "now",
               maxDurationMin: preview.controls.maxDurationMin,
               socialEnergy: preview.controls.socialEnergy ?? controls.socialEnergy,
+              travelKm: preview.controls.travelKm ?? controls.travelKm,
+              budgetAud: preview.controls.budgetAud ?? controls.budgetAud,
             },
             preview.controls.proposedActivity,
           );

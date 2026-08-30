@@ -1,4 +1,6 @@
 import type { z } from "zod"
+import { GoogleGenAI } from "@google/genai"
+import { getEnv } from "@/lib/config"
 import { generateJson } from "@/lib/ai/generateJson"
 import { ConciergeSynthesisSchema, type ConciergeSynthesis } from "@/lib/concierge/schema"
 
@@ -37,7 +39,8 @@ function templateFallback(facts: SynthesisFacts): ConciergeSynthesis {
 }
 
 function buildDefaultDeps(): SynthesisDeps {
-  return { generate: generateJson }
+  const client = new GoogleGenAI({ apiKey: getEnv("GEMINI_API_KEY") })
+  return { generate: (prompt, schema) => generateJson(client, prompt, schema) }
 }
 
 export async function synthesizeExplanation(

@@ -34,6 +34,11 @@ describe("ConciergeIntentSchema", () => {
     expect(result.success).toBe(false)
   })
 
+  it("rejects a maxDurationMin above 240", () => {
+    const result = ConciergeIntentSchema.safeParse(makeIntent({ maxDurationMin: 241 }))
+    expect(result.success).toBe(false)
+  })
+
   it("rejects an invalid socialEnergy value", () => {
     const result = ConciergeIntentSchema.safeParse(makeIntent({ socialEnergy: "extreme" }))
     expect(result.success).toBe(false)

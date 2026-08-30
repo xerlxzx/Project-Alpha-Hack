@@ -7,7 +7,7 @@ import { z } from "zod"
 // to schedule ahead already has the existing "Plan ahead" sheet for that.
 export const ConciergeIntentSchema = z.object({
   moodSummary: z.string(),
-  maxDurationMin: z.number().int().positive(),
+  maxDurationMin: z.number().int().positive().max(240),
   // "Other people", not counting the caller. null means no preference.
   groupSizeHint: z.number().int().min(1).max(5).nullable(),
   proposedActivity: z.string().nullable(),

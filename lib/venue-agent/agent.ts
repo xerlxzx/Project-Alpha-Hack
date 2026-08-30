@@ -1,4 +1,6 @@
 import { z } from "zod"
+import { GoogleGenAI } from "@google/genai"
+import { getEnv } from "@/lib/config"
 import { generateJson } from "@/lib/ai/generateJson"
 import { FALLBACK_RECOMMENDATION } from "@/lib/venue-agent/fallback"
 import {
@@ -172,8 +174,9 @@ function buildRankPrompt(candidates: PlaceCandidate[], group: GroupProfile, plan
 }
 
 function buildDefaultDeps(): AgentDeps {
+  const client = new GoogleGenAI({ apiKey: getEnv("GEMINI_API_KEY") })
   return {
-    planSearch: (group) => generateJson(buildPlanPrompt(group), SearchPlanSchema),
+    planSearch: (group) => generateJson(client, buildPlanPrompt(group), SearchPlanSchema),
     searchPlaces: (plan, group) =>
       placesTextSearch(plan.textQuery, {
         lat: group.center.lat,
@@ -181,7 +184,7 @@ function buildDefaultDeps(): AgentDeps {
         radiusM: plan.radiusM,
       }),
     getPlaceDetails: (placeId) => placeDetails(placeId),
-    rankCandidates: (candidates, group, plan) => generateJson(buildRankPrompt(candidates, group, plan), RankResultSchema),
+    rankCandidates: (candidates, group, plan) => generateJson(client, buildRankPrompt(candidates, group, plan), RankResultSchema),
   }
 }
 
