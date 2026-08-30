@@ -28,9 +28,9 @@ export interface MatchResult {
   explanation: string[]
 }
 
-const GROUP_MIN = 3
-const GROUP_TARGET = 4
-const GROUP_MAX = 6
+export const GROUP_MIN = 3
+export const GROUP_TARGET = 4
+export const GROUP_MAX = 6
 
 const GENDER_PLURALS: Record<string, string> = {
   man: "men",
@@ -82,7 +82,7 @@ function availabilityOverlapRatio(a: AvailabilityWindow[], b: AvailabilityWindow
 export function buildMatch(
   activeUser: ActiveUser,
   pool: PoolMember[],
-  ctx: { blockedPairs: Array<[string, string]>; now: Date; relaxAvailability?: boolean }
+  ctx: { blockedPairs: Array<[string, string]>; now: Date; relaxAvailability?: boolean; targetSize?: number }
 ): MatchResult {
   const gateCtx: GateContext = {
     activeUser,
@@ -108,7 +108,9 @@ export function buildMatch(
     return { status: "insufficient", members: [], explanation: [] }
   }
 
-  const groupSize = Math.min(scored.length, GROUP_TARGET, GROUP_MAX)
+  const requestedTarget =
+    ctx.targetSize != null ? Math.min(Math.max(ctx.targetSize, GROUP_MIN), GROUP_MAX) : GROUP_TARGET
+  const groupSize = Math.min(scored.length, requestedTarget, GROUP_MAX)
   const members = scored.slice(0, groupSize)
 
   const reasonCounts = new Map<string, number>()

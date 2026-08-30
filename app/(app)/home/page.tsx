@@ -13,11 +13,13 @@ import {
   GraduationCap,
   Loader2,
   MapPin,
+  MessageCircle,
   SlidersHorizontal,
   Sparkles,
   User,
   UtensilsCrossed,
   Wallet,
+  X,
   Zap,
 } from "lucide-react";
 
@@ -292,6 +294,36 @@ interface NearbyResponse {
   events: NearbyEvent[];
 }
 
+// Mirrors POST /api/concierge's response shapes (app/api/concierge/route.ts's
+// ConciergePreviewResponse / ConciergeInsufficientResponse). Kept local to
+// avoid importing server code, matching this file's existing convention.
+interface ConciergePreview {
+  status: "preview";
+  intentSummary: string;
+  groupSize: number;
+  genderMix: string;
+  sharedInterestReasons: string[];
+  venue: { name: string; reason: string; distanceKm: number; mapsUrl: string | null };
+  explanation: string;
+  opener: string;
+  controls: {
+    maxDurationMin: number;
+    socialEnergy: SocialEnergy | null;
+    proposedActivity: string | null;
+    travelKm: number | null;
+    budgetAud: number | null;
+  };
+}
+
+interface ConciergeInsufficient {
+  status: "insufficient";
+}
+
+type ConciergeResult =
+  | ConciergePreview
+  | ConciergeInsufficient
+  | { status: "error"; message: string };
+
 function greetingFor(hour: number): string {
   if (hour < 12) return "Good morning";
   if (hour < 18) return "Good afternoon";
@@ -413,12 +445,18 @@ export default function HomePage() {
     React.useState<InsufficientMatch | null>(null);
   const [matchError, setMatchError] = React.useState<string | null>(null);
   const [lastAttempt, setLastAttempt] = React.useState<Mode>("im_free");
+  const [conciergeResult, setConciergeResult] =
+    React.useState<ConciergeResult | null>(null);
 
   function patch(partial: Partial<Controls>) {
     setControls((c) => ({ ...c, ...partial }));
   }
 
-  async function startMatch(mode: Mode, c: Controls) {
+  async function startMatch(
+    mode: Mode,
+    c: Controls,
+    proposedActivityOverride?: string | null,
+  ) {
     setSheetOpen(false);
     setLastAttempt(mode);
     setMatchState("loading");
@@ -444,7 +482,9 @@ export default function HomePage() {
           // Selected in the hero; both the main CTA and the sheet's confirm
           // route through here, so the chip is honoured either way.
           proposedActivity:
-            ALL_ACTIVITIES.find((a) => a.id === activityId)?.proposed ?? null,
+            proposedActivityOverride !== undefined
+              ? proposedActivityOverride
+              : (ALL_ACTIVITIES.find((a) => a.id === activityId)?.proposed ?? null),
           availability: [{ startAt, endAt, mode }],
         }),
       });
@@ -535,7 +575,7 @@ export default function HomePage() {
           </motion.p>
 
           <motion.div variants={riseItem} className="mt-6">
-            <ConciergeBox />
+            <ConciergeBox onResult={setConciergeResult} />
           </motion.div>
 
           <motion.div variants={riseItem} className="mt-7">
@@ -604,6 +644,26 @@ export default function HomePage() {
           reduce={!!reduce}
         />
       </main>
+
+      <ConciergePreviewCard
+        result={conciergeResult}
+        onDismiss={() => setConciergeResult(null)}
+        onLockIn={(preview) => {
+          setConciergeResult(null);
+          startMatch(
+            "im_free",
+            {
+              ...controls,
+              startChoice: "now",
+              maxDurationMin: preview.controls.maxDurationMin,
+              socialEnergy: preview.controls.socialEnergy ?? controls.socialEnergy,
+              travelKm: preview.controls.travelKm ?? controls.travelKm,
+              budgetAud: preview.controls.budgetAud ?? controls.budgetAud,
+            },
+            preview.controls.proposedActivity,
+          );
+        }}
+      />
 
       <ControlsSheet
         open={sheetOpen}
@@ -1168,23 +1228,44 @@ function Atmosphere() {
 }
 
 /* ------------------------------------------------------------------ */
-/* AI concierge prompt. Reserved hero real estate for free-text intent   */
-/* ("tired, 90 minutes, want to meet 2 people nearby") that will later    */
-/* drive ranking + a venue/group recommendation. Not wired to a backend   */
-/* yet. Submitting surfaces an inline "still warming up" affordance       */
-/* rather than a dead click.                                              */
+/* AI concierge prompt. Free-text intent ("tired, 90 minutes, want to    */
+/* meet 2 people nearby") is sent to POST /api/concierge, which runs the */
+/* real deterministic matcher + venue agent to build a preview without   */
+/* persisting anything; the result is surfaced via onResult.             */
 /* ------------------------------------------------------------------ */
 
-function ConciergeBox() {
+function ConciergeBox({ onResult }: { onResult: (result: ConciergeResult) => void }) {
   const reduce = useReducedMotion();
   const [value, setValue] = React.useState("");
-  const [pinged, setPinged] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!value.trim()) return;
-    setPinged(true);
-    window.setTimeout(() => setPinged(false), 3200);
+    const text = value.trim();
+    if (!text || loading) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/concierge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        onResult({
+          status: "error",
+          message: typeof data?.error === "string" ? data.error : "Couldn't reach the concierge.",
+        });
+        return;
+      }
+      onResult(data as ConciergeResult);
+    } catch {
+      onResult({ status: "error", message: "Couldn't reach the concierge." });
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -1205,7 +1286,8 @@ function ConciergeBox() {
             onChange={(e) => setValue(e.target.value)}
             placeholder="I want to study with baddies near me... "
             aria-label="Tell the concierge what you're in the mood for"
-            className="min-w-0 flex-1 bg-transparent px-2 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+            disabled={loading}
+            className="min-w-0 flex-1 bg-transparent px-2 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-60"
           />
           <motion.button
             type="submit"
@@ -1213,27 +1295,133 @@ function ConciergeBox() {
             whileTap={reduce ? undefined : { scale: 0.92 }}
             transition={spring.snappy}
             className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--accent)] text-[var(--accent-foreground)] disabled:opacity-40"
-            disabled={!value.trim()}
+            disabled={!value.trim() || loading}
           >
-            <ArrowUp className="h-4 w-4" />
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ArrowUp className="h-4 w-4" />
+            )}
           </motion.button>
         </form>
       </GlassPanel>
-
-      <AnimatePresence>
-        {pinged && (
-          <motion.p
-            initial={reduce ? false : { opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="absolute inset-x-0 top-full mt-2 text-center text-xs text-muted-foreground"
-          >
-            The concierge is still warming up. Full launch soon.
-          </motion.p>
-        )}
-      </AnimatePresence>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Concierge result: a preview built from the real deterministic         */
+/* matcher + venue agent, but nothing is persisted until "Lock it in".   */
+/* ------------------------------------------------------------------ */
+
+function ConciergePreviewCard({
+  result,
+  onDismiss,
+  onLockIn,
+}: {
+  result: ConciergeResult | null;
+  onDismiss: () => void;
+  onLockIn: (preview: ConciergePreview) => void;
+}) {
+  return (
+    <AnimatePresence>
+      {result && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={spring.snappy}
+          className="fixed inset-0 z-50 grid place-items-center bg-black/30 px-6 backdrop-blur-[2px]"
+        >
+          <GlassPanel
+            withTextBacking
+            className="w-full max-w-sm rounded-3xl p-6 text-left"
+          >
+            <button
+              type="button"
+              onClick={onDismiss}
+              aria-label="Dismiss"
+              className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            {result.status === "preview" && (
+              <>
+                <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--accent)]">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Concierge preview
+                </p>
+                <p className="mt-3 font-display text-lg font-semibold text-foreground">
+                  {result.venue.name}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {result.groupSize} people total &middot; {result.venue.distanceKm.toFixed(1)} km away
+                </p>
+                <p className="mt-3 text-sm text-foreground/90">{result.explanation}</p>
+
+                <div className="mt-4 flex items-start gap-2 rounded-2xl border border-border bg-card/60 p-3 text-sm">
+                  <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent)]" />
+                  <span className="text-foreground/90">{result.opener}</span>
+                </div>
+
+                <div className="mt-5 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={onDismiss}
+                    className="flex-1 rounded-full border border-border px-4 py-2.5 text-sm font-medium text-foreground/80"
+                  >
+                    Never mind
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onLockIn(result)}
+                    className="flex-1 rounded-full bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--accent-foreground)]"
+                  >
+                    Lock it in
+                  </button>
+                </div>
+              </>
+            )}
+
+            {result.status === "insufficient" && (
+              <>
+                <p className="font-display text-lg font-semibold text-foreground">
+                  No group ready yet
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Not enough people match that right now. Try again in a bit, or use &ldquo;Find
+                  people now&rdquo; for a wider search.
+                </p>
+                <button
+                  type="button"
+                  onClick={onDismiss}
+                  className="mt-5 rounded-full bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-[var(--accent-foreground)]"
+                >
+                  Got it
+                </button>
+              </>
+            )}
+
+            {result.status === "error" && (
+              <>
+                <p className="font-display text-lg font-semibold text-foreground">
+                  Something went wrong
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">{result.message}</p>
+                <button
+                  type="button"
+                  onClick={onDismiss}
+                  className="mt-5 rounded-full border border-border px-5 py-2 text-sm font-medium text-foreground/80"
+                >
+                  Dismiss
+                </button>
+              </>
+            )}
+          </GlassPanel>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

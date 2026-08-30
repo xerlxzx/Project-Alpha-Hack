@@ -217,3 +217,47 @@ describe("pool gate signal derivation", () => {
     expect(activitySignalsAllowed(["basketball", "food exploration"])).toBe(true)
   })
 })
+
+describe("buildMatch targetSize", () => {
+  function makeFullPool(): PoolMember[] {
+    return [
+      makePoolMember("cand-1"),
+      makePoolMember("cand-2"),
+      makePoolMember("cand-3"),
+      makePoolMember("cand-4"),
+      makePoolMember("cand-5"),
+      makePoolMember("cand-6"),
+    ]
+  }
+
+  it("honors a targetSize within [GROUP_MIN, GROUP_MAX]", () => {
+    const result = buildMatch(makeActiveUser(), makeFullPool(), makeCtx({ targetSize: 5 }))
+    expect(result.status).toBe("ready")
+    expect(result.members.length).toBe(5)
+  })
+
+  it("clamps a targetSize below GROUP_MIN up to GROUP_MIN", () => {
+    const result = buildMatch(makeActiveUser(), makeFullPool(), makeCtx({ targetSize: 1 }))
+    expect(result.status).toBe("ready")
+    expect(result.members.length).toBe(3)
+  })
+
+  it("clamps a targetSize above GROUP_MAX down to GROUP_MAX", () => {
+    const result = buildMatch(makeActiveUser(), makeFullPool(), makeCtx({ targetSize: 10 }))
+    expect(result.status).toBe("ready")
+    expect(result.members.length).toBe(6)
+  })
+
+  it("still caps to the pool size when targetSize exceeds available eligible candidates", () => {
+    const smallPool = [makePoolMember("cand-1"), makePoolMember("cand-2"), makePoolMember("cand-3")]
+    const result = buildMatch(makeActiveUser(), smallPool, makeCtx({ targetSize: 6 }))
+    expect(result.status).toBe("ready")
+    expect(result.members.length).toBe(3)
+  })
+
+  it("defaults to GROUP_TARGET (4) when targetSize is not provided", () => {
+    const result = buildMatch(makeActiveUser(), makeFullPool(), makeCtx())
+    expect(result.status).toBe("ready")
+    expect(result.members.length).toBe(4)
+  })
+})

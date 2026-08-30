@@ -1,6 +1,7 @@
-import { GoogleGenAI } from "@google/genai"
 import { z } from "zod"
-import { GEMINI_MODEL, getEnv } from "@/lib/config"
+import { GoogleGenAI } from "@google/genai"
+import { getEnv } from "@/lib/config"
+import { generateJson } from "@/lib/ai/generateJson"
 import { FALLBACK_RECOMMENDATION } from "@/lib/venue-agent/fallback"
 import {
   isClosedBusinessStatus,
@@ -173,26 +174,9 @@ function buildRankPrompt(candidates: PlaceCandidate[], group: GroupProfile, plan
 }
 
 function buildDefaultDeps(): AgentDeps {
-  const ai = new GoogleGenAI({ apiKey: getEnv("GEMINI_API_KEY") })
-
-  async function generateJson(prompt: string, schema: z.ZodType): Promise<unknown> {
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: z.toJSONSchema(schema),
-      },
-    })
-    const text = response.text
-    if (!text) {
-      throw new VenueAgentError("Gemini returned no structured output")
-    }
-    return JSON.parse(text)
-  }
-
+  const client = new GoogleGenAI({ apiKey: getEnv("GEMINI_API_KEY") })
   return {
-    planSearch: (group) => generateJson(buildPlanPrompt(group), SearchPlanSchema),
+    planSearch: (group) => generateJson(client, buildPlanPrompt(group), SearchPlanSchema),
     searchPlaces: (plan, group) =>
       placesTextSearch(plan.textQuery, {
         lat: group.center.lat,
@@ -200,7 +184,7 @@ function buildDefaultDeps(): AgentDeps {
         radiusM: plan.radiusM,
       }),
     getPlaceDetails: (placeId) => placeDetails(placeId),
-    rankCandidates: (candidates, group, plan) => generateJson(buildRankPrompt(candidates, group, plan), RankResultSchema),
+    rankCandidates: (candidates, group, plan) => generateJson(client, buildRankPrompt(candidates, group, plan), RankResultSchema),
   }
 }
 
