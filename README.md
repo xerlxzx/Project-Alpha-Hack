@@ -2,7 +2,7 @@
 
 A bored student can go from a phone to a confirmed group activity at a real venue in under two minutes.
 
-Project Alpha is a mobile-first PWA for university students. You set when you are free, how far you will travel, and what you enjoy. TypeScript matching forms a small group of compatible, verified students. A Gemini venue agent searches Google Places for a real activity nearby. The group accepts. Identities open in stages. The plan locks in. The product uses technology so you can leave it behind.
+Project Alpha is a mobile-first PWA for university students. You set when you are free, how far you will travel, and what you enjoy. TypeScript matching forms a small group of compatible, verified students. A Gemini venue agent searches Google Places for a real activity nearby. The group accepts, identities open in stages, and the plan locks in. You close the app and go meet people.
 
 Built for **SYNCS Hack 2026** (theme: *Blocks That Make Up the World*).
 
@@ -14,7 +14,7 @@ Landing → **Enter demo** → 60-second onboarding → **I'm free later today**
 
 ## Architecture: what decides what
 
-Three layers. The UI shows the split. That split is the pitch.
+The app runs on three layers, and the UI shows the split between them.
 
 | Layer | Owns | Does not |
 | --- | --- | --- |

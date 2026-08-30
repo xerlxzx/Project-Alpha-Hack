@@ -4,7 +4,7 @@
 
 **Goal:** Wire the home page's `ConciergeBox` free-text input to a real pipeline that interprets mood/time/activity constraints, runs the existing deterministic matcher and venue agent to build a preview recommendation, explains it and drafts an opener, and lets the user commit it via the existing `/api/match` flow.
 
-**Architecture:** Reuse the existing deterministic matcher (`buildMatch`) and `runVenueAgent` unchanged for the actual ranking/venue-picking — they already require no DB writes to compute a result. Add a thin Gemini interpretation layer before them and a synthesis layer after them, orchestrated by one new route (`POST /api/concierge`) that returns a preview (nothing persisted). A separate "Lock it in" action on the client calls the existing, unmodified `POST /api/match` to actually commit — no parallel matching implementation.
+**Architecture:** Reuse the existing deterministic matcher (`buildMatch`) and `runVenueAgent` unchanged for the actual ranking/venue-picking. They already require no DB writes to compute a result. Add a thin Gemini interpretation layer before them and a synthesis layer after them, orchestrated by one new route (`POST /api/concierge`) that returns a preview (nothing persisted). A separate "Lock it in" action on the client calls the existing, unmodified `POST /api/match` to actually commit, with no parallel matching implementation.
 
 **Tech Stack:** Next.js (App Router, TypeScript), `@google/genai` (Gemini), Zod, Supabase (admin client, read-only for this feature), Vitest, Framer Motion, Tailwind v4.
 
@@ -12,13 +12,13 @@
 
 ## Global Constraints
 
-- No names, photos, contact info, exact location, reliability, or reports are ever disclosed pre-acceptance (existing rule; the concierge's explanation must never name a candidate — refer to them only by count).
-- Gemini never decides eligibility/safety — only `lib/matcher/gates.ts` (existing, unmodified) does. Gemini never invents a venue or fact not already produced by the deterministic pipeline or Google Places (existing rule already enforced by `runVenueAgent`; the new synthesis step must follow the same discipline).
-- The concierge always means "start now" (mirrors the existing `im_free` mode) — no scheduling path in this feature.
+- No names, photos, contact info, exact location, reliability, or reports are ever disclosed pre-acceptance (existing rule; the concierge's explanation must never name a candidate, only refer to them by count).
+- Gemini never decides eligibility/safety; only `lib/matcher/gates.ts` (existing, unmodified) does. Gemini never invents a venue or fact not already produced by the deterministic pipeline or Google Places (existing rule already enforced by `runVenueAgent`; the new synthesis step must follow the same discipline).
+- The concierge always means "start now" (mirrors the existing `im_free` mode), with no scheduling path in this feature.
 - `groupSizeHint` (other people, not counting the user) maps to `buildMatch`'s `targetSize` as `hint + 1`, clamped to `[GROUP_MIN, GROUP_MAX]` = `[3, 6]`.
 - Zod validates every Gemini output before it's trusted anywhere downstream (existing project-wide rule, `CLAUDE.md`).
-- Don't add a second ad-hoc implementation of something that already exists — extract and share instead (existing project-wide rule).
-- This codebase has no `app/api/*/route.test.ts` files anywhere — API routes are verified manually (curl/browser), not with automated tests. Follow that existing convention for the new route; only `lib/` modules get Vitest unit tests.
+- Don't add a second ad-hoc implementation of something that already exists; extract and share instead (existing project-wide rule).
+- This codebase has no `app/api/*/route.test.ts` files anywhere. API routes are verified manually (curl/browser), not with automated tests. Follow that existing convention for the new route; only `lib/` modules get Vitest unit tests.
 
 ---
 
@@ -30,7 +30,7 @@
 - Test: `lib/ai/__tests__/generateJson.test.ts`
 
 **Interfaces:**
-- Produces: `generateJson(prompt: string, schema: z.ZodType): Promise<unknown>` — calls Gemini with `responseSchema` steering, parses the JSON text response, throws `AiJsonError` if Gemini returns no text. Does **not** validate against `schema` itself (callers do that with `schema.parse(raw)`, matching the existing `venue-agent` pattern where `deps.planSearch(group)` returns `unknown` and `agent.ts` calls `SearchPlanSchema.parse(rawPlan)` separately).
+- Produces: `generateJson(prompt: string, schema: z.ZodType): Promise<unknown>`, which calls Gemini with `responseSchema` steering, parses the JSON text response, and throws `AiJsonError` if Gemini returns no text. Does **not** validate against `schema` itself (callers do that with `schema.parse(raw)`, matching the existing `venue-agent` pattern where `deps.planSearch(group)` returns `unknown` and `agent.ts` calls `SearchPlanSchema.parse(rawPlan)` separately).
 - Consumes: `GEMINI_MODEL`, `getEnv` from `@/lib/config` (existing).
 
 - [ ] **Step 1: Write the failing test**
@@ -72,7 +72,7 @@ describe("generateJson", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run lib/ai/__tests__/generateJson.test.ts`
-Expected: FAIL — `Cannot find module '@/lib/ai/generateJson'` (file doesn't exist yet).
+Expected: FAIL: `Cannot find module '@/lib/ai/generateJson'` (file doesn't exist yet).
 
 - [ ] **Step 3: Write the implementation**
 
@@ -141,12 +141,12 @@ function buildDefaultDeps(): AgentDeps {
 }
 ```
 
-This deletes the old local `async function generateJson(...)` entirely — it's now imported. `GEMINI_MODEL` and `getEnv` were only used by that local function, so they are now unused in `agent.ts`: remove `import { GEMINI_MODEL, getEnv } from "@/lib/config"` from `agent.ts` entirely (its only other import from `@/lib/config` was this one line).
+This deletes the old local `async function generateJson(...)` entirely, since it's now imported. `GEMINI_MODEL` and `getEnv` were only used by that local function, so they are now unused in `agent.ts`: remove `import { GEMINI_MODEL, getEnv } from "@/lib/config"` from `agent.ts` entirely (its only other import from `@/lib/config` was this one line).
 
 - [ ] **Step 6: Run the full existing venue-agent test suite to confirm no regression**
 
 Run: `npx vitest run lib/venue-agent/__tests__/validation.test.ts`
-Expected: PASS (all existing tests still pass — they inject their own `AgentDeps` and never exercise `buildDefaultDeps`, so this refactor doesn't change their behavior).
+Expected: PASS (all existing tests still pass since they inject their own `AgentDeps` and never exercise `buildDefaultDeps`, so this refactor doesn't change their behavior).
 
 - [ ] **Step 7: Lint**
 
@@ -197,7 +197,7 @@ describe("sharedInterestsOf", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run lib/matcher/__tests__/anonymize.test.ts`
-Expected: FAIL — `Cannot find module '@/lib/matcher/anonymize'`
+Expected: FAIL: `Cannot find module '@/lib/matcher/anonymize'`
 
 - [ ] **Step 3: Write the implementation**
 
@@ -255,7 +255,7 @@ import { type AnonymisedMember, sharedInterestsOf } from "@/lib/matcher/anonymiz
 - [ ] **Step 6: Verify no regression**
 
 Run: `npm test`
-Expected: all existing tests still pass (this route has no dedicated test file — confirm the whole suite is green and, if a dev server is running, `curl -X POST localhost:3000/api/match` still returns the same shape it did before).
+Expected: all existing tests still pass (this route has no dedicated test file, so confirm the whole suite is green and, if a dev server is running, `curl -X POST localhost:3000/api/match` still returns the same shape it did before).
 
 - [ ] **Step 7: Lint**
 
@@ -301,7 +301,7 @@ git commit -m "refactor: extract shared AnonymisedMember/sharedInterestsOf helpe
   ): GroupProfile
   ```
   (`GroupProfile` is the existing type exported from `lib/venue-agent/agent.ts`.)
-- Consumes: nothing new — pure function, no I/O.
+- Consumes: nothing new (pure function, no I/O).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -392,7 +392,7 @@ describe("buildGroupProfileFromMembers", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run lib/venue-agent/__tests__/groupProfile.test.ts`
-Expected: FAIL — `Cannot find module '@/lib/venue-agent/groupProfile'`
+Expected: FAIL: `Cannot find module '@/lib/venue-agent/groupProfile'`
 
 - [ ] **Step 3: Write the implementation**
 
@@ -475,7 +475,7 @@ Expected: PASS (7 tests)
 
 - [ ] **Step 5: Refactor `app/api/venue-agent/route.ts`'s `buildGroupProfileForMeetup` to use it**
 
-Replace the whole body of `buildGroupProfileForMeetup` from the point `prefRows` is computed onward. Keep the existing DB loads (`meetup`, `members`, `preferences` queries) exactly as they are — only replace this tail:
+Replace the whole body of `buildGroupProfileForMeetup` from the point `prefRows` is computed onward. Keep the existing DB loads (`meetup`, `members`, `preferences` queries) exactly as they are, and only replace this tail:
 
 ```typescript
 // Replace everything from "const prefRows = ..." to the end of the function
@@ -506,7 +506,7 @@ Add the import at the top of `app/api/venue-agent/route.ts`:
 import { buildGroupProfileFromMembers, type MemberProfileInput } from "@/lib/venue-agent/groupProfile"
 ```
 
-The `DEFAULT_BUDGET_AUD`/`DEFAULT_TRAVEL_KM` constants in this file become unused — delete them (they now live in `lib/venue-agent/groupProfile.ts`).
+The `DEFAULT_BUDGET_AUD`/`DEFAULT_TRAVEL_KM` constants in this file become unused: delete them (they now live in `lib/venue-agent/groupProfile.ts`).
 
 - [ ] **Step 6: Verify no regression**
 
@@ -531,15 +531,15 @@ git commit -m "refactor: extract shared buildGroupProfileFromMembers helper"
 
 **Files:**
 - Modify: `lib/matcher/match.ts`
-- Test: `lib/matcher/__tests__/match.test.ts` (existing file — add new `describe` block)
+- Test: `lib/matcher/__tests__/match.test.ts` (existing file; add new `describe` block)
 
 **Interfaces:**
 - Produces: `export const GROUP_MIN = 3`, `export const GROUP_TARGET = 4`, `export const GROUP_MAX = 6` (previously unexported local consts). `buildMatch`'s third parameter gains an optional `targetSize?: number` field.
-- Existing callers (`app/api/match/route.ts`, which doesn't pass `targetSize`) are unaffected — default behavior is identical to today.
+- Existing callers (`app/api/match/route.ts`, which doesn't pass `targetSize`) are unaffected; default behavior is identical to today.
 
 - [ ] **Step 1: Write the failing test**
 
-Add this `describe` block to the end of the existing `lib/matcher/__tests__/match.test.ts` (it already has `makeActiveUser`/`makePoolMember`/`makeCtx` helpers — reuse them, don't redefine):
+Add this `describe` block to the end of the existing `lib/matcher/__tests__/match.test.ts` (it already has `makeActiveUser`/`makePoolMember`/`makeCtx` helpers; reuse them, don't redefine):
 
 ```typescript
 describe("buildMatch targetSize", () => {
@@ -590,7 +590,7 @@ describe("buildMatch targetSize", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run lib/matcher/__tests__/match.test.ts`
-Expected: FAIL on the new `targetSize` tests — TypeScript error, `targetSize` does not exist on the ctx type (or, if it type-checks loosely, the honor/clamp tests fail because `buildMatch` ignores the field and always returns 4).
+Expected: FAIL on the new `targetSize` tests: a TypeScript error, `targetSize` does not exist on the ctx type (or, if it type-checks loosely, the honor/clamp tests fail because `buildMatch` ignores the field and always returns 4).
 
 - [ ] **Step 3: Write the implementation**
 
@@ -727,7 +727,7 @@ describe("ConciergeSynthesisSchema", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run lib/concierge/__tests__/schema.test.ts`
-Expected: FAIL — `Cannot find module '@/lib/concierge/schema'`
+Expected: FAIL: `Cannot find module '@/lib/concierge/schema'`
 
 - [ ] **Step 3: Write the implementation**
 
@@ -865,7 +865,7 @@ describe("interpretIntent", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run lib/concierge/__tests__/intent.test.ts`
-Expected: FAIL — `Cannot find module '@/lib/concierge/intent'`
+Expected: FAIL: `Cannot find module '@/lib/concierge/intent'`
 
 - [ ] **Step 3: Write the implementation**
 
@@ -962,7 +962,7 @@ git commit -m "feat: add concierge intent interpretation with retry-then-error"
     deps?: SynthesisDeps
   ): Promise<ConciergeSynthesis>
   ```
-  Never throws — falls back to a deterministic template built from `facts` on any failure (schema-validation or Gemini-call failure alike), so this step can never block the preview.
+  Never throws: falls back to a deterministic template built from `facts` on any failure (schema-validation or Gemini-call failure alike), so this step can never block the preview.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1024,7 +1024,7 @@ describe("synthesizeExplanation", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run lib/concierge/__tests__/synthesize.test.ts`
-Expected: FAIL — `Cannot find module '@/lib/concierge/synthesize'`
+Expected: FAIL: `Cannot find module '@/lib/concierge/synthesize'`
 
 - [ ] **Step 3: Write the implementation**
 
@@ -1112,7 +1112,7 @@ git commit -m "feat: add concierge explanation/opener synthesis with template fa
 - Create: `app/api/concierge/route.ts`
 
 **Interfaces:**
-- Consumes: `getCurrentUser` (`@/lib/current-user`), `getAdminSupabase` (`@/lib/supabase/server`), `loadMatchInputs` (`@/lib/matcher/loadPool`), `buildMatch`, `describeGenderMix`, `GROUP_MIN`, `GROUP_MAX` (`@/lib/matcher/match`), `interpretIntent`, `ConciergeIntentError` (`@/lib/concierge/intent`), `synthesizeExplanation` (`@/lib/concierge/synthesize`), `buildGroupProfileFromMembers` (`@/lib/venue-agent/groupProfile`), `runVenueAgent` (`@/lib/venue-agent/agent`). (`sharedInterestsOf` from Task 2 is not needed here — this route surfaces `result.explanation`, buildMatch's aggregate reason list, not a per-member breakdown.)
+- Consumes: `getCurrentUser` (`@/lib/current-user`), `getAdminSupabase` (`@/lib/supabase/server`), `loadMatchInputs` (`@/lib/matcher/loadPool`), `buildMatch`, `describeGenderMix`, `GROUP_MIN`, `GROUP_MAX` (`@/lib/matcher/match`), `interpretIntent`, `ConciergeIntentError` (`@/lib/concierge/intent`), `synthesizeExplanation` (`@/lib/concierge/synthesize`), `buildGroupProfileFromMembers` (`@/lib/venue-agent/groupProfile`), `runVenueAgent` (`@/lib/venue-agent/agent`). (`sharedInterestsOf` from Task 2 is not needed here: this route surfaces `result.explanation`, buildMatch's aggregate reason list, not a per-member breakdown.)
 - Produces the response shapes consumed by Task 9's UI:
   ```typescript
   interface ConciergePreviewResponse {
@@ -1130,7 +1130,7 @@ git commit -m "feat: add concierge explanation/opener synthesis with template fa
   // On error: Response.json({ error: string }, { status: 422 | 401 | 400 | 500 })
   ```
 
-No automated test for this task — this codebase has no `app/api/*/route.test.ts` files (verified: `find app/api -name "*.test.ts"` returns nothing). Verify manually per Step 5 below, matching the project's existing convention.
+No automated test for this task. This codebase has no `app/api/*/route.test.ts` files (verified: `find app/api -name "*.test.ts"` returns nothing). Verify manually per Step 5 below, matching the project's existing convention.
 
 - [ ] **Step 1: Write the route**
 
@@ -1277,10 +1277,10 @@ export async function POST(request: Request): Promise<Response> {
 }
 ```
 
-- [ ] **Step 2: Manual verification — happy path**
+- [ ] **Step 2: Manual verification: happy path**
 
 Run: `npm run dev` (from the worktree root)
-Then, with a demo session (no auth needed — `getCurrentUser()` falls back to the seeded demo user):
+Then, with a demo session (no auth needed since `getCurrentUser()` falls back to the seeded demo user):
 
 ```bash
 curl -s -X POST http://localhost:3000/api/concierge \
@@ -1290,7 +1290,7 @@ curl -s -X POST http://localhost:3000/api/concierge \
 
 Expected: HTTP 200, `status: "preview"`, `controls.maxDurationMin: 90`, `groupSize` between 3 and 6, a `venue` object with a non-empty `name`, and non-empty `explanation`/`opener` strings that don't contain any first name.
 
-- [ ] **Step 3: Manual verification — insufficient path**
+- [ ] **Step 3: Manual verification: insufficient path**
 
 Temporarily request an activity guaranteed to have no eligible pool (e.g. one of the excluded-activity patterns from `lib/matcher/loadPool.ts`, like `"pub crawl"`, forces `activityAllowed: false` for every candidate):
 
@@ -1302,7 +1302,7 @@ curl -s -X POST http://localhost:3000/api/concierge \
 
 Expected: HTTP 200, `{"status":"insufficient"}` (no `venue`/`explanation` fields).
 
-- [ ] **Step 4: Manual verification — malformed request**
+- [ ] **Step 4: Manual verification: malformed request**
 
 ```bash
 curl -s -X POST http://localhost:3000/api/concierge -H "Content-Type: application/json" -d '{}' -o /dev/null -w "%{http_code}\n"
@@ -1337,10 +1337,10 @@ git commit -m "feat: add POST /api/concierge preview route"
 - Modify: `app/(app)/home/page.tsx`
 
 **Interfaces:**
-- Consumes: the `ConciergePreviewResponse` / `ConciergeInsufficientResponse` shapes from Task 8 (mirrored locally as a client-side interface, matching this file's existing convention of mirroring `/api/nearby`'s and `/api/match`'s response shapes locally rather than importing server route types — see the existing `NearbyEvent`/`NearbyResponse`/`MatchSuggestion` interfaces already in this file).
-- Produces: a working end-to-end flow — type in `ConciergeBox`, see a loading state, see the preview card, tap "Lock it in" to call the existing `/api/match` via `startMatch`, or "Never mind" to dismiss.
+- Consumes: the `ConciergePreviewResponse` / `ConciergeInsufficientResponse` shapes from Task 8 (mirrored locally as a client-side interface, matching this file's existing convention of mirroring `/api/nearby`'s and `/api/match`'s response shapes locally rather than importing server route types; see the existing `NearbyEvent`/`NearbyResponse`/`MatchSuggestion` interfaces already in this file).
+- Produces: a working end-to-end flow. Type in `ConciergeBox`, see a loading state, see the preview card, tap "Lock it in" to call the existing `/api/match` via `startMatch`, or "Never mind" to dismiss.
 
-No automated test for this task — this file has no existing test coverage (it's a client page component; the project's test suite covers `lib/` only). Verify manually per the steps below.
+No automated test for this task. This file has no existing test coverage (it's a client page component; the project's test suite covers `lib/` only). Verify manually per the steps below.
 
 - [ ] **Step 1: Add the new lucide icons and local response types**
 
@@ -1426,7 +1426,7 @@ with:
               : (ALL_ACTIVITIES.find((a) => a.id === activityId)?.proposed ?? null),
 ```
 
-(Every existing call site — the main CTA's `startMatch("im_free", controls)` and the sheet's `startMatch(mode)` — omits the third argument, so `proposedActivityOverride` is `undefined` there and behavior is unchanged.)
+(Every existing call site, the main CTA's `startMatch("im_free", controls)` and the sheet's `startMatch(mode)`, omits the third argument, so `proposedActivityOverride` is `undefined` there and behavior is unchanged.)
 
 - [ ] **Step 3: Replace the `<ConciergeBox />` render site with the wired version + preview card**
 
@@ -1548,7 +1548,7 @@ function ConciergeBox({ onResult }: { onResult: (result: ConciergeResult) => voi
 }
 ```
 
-(This drops the old `pinged`/"still warming up" placeholder state entirely — it's superseded by the real `loading` state and the result card.)
+(This drops the old `pinged`/"still warming up" placeholder state entirely; it's superseded by the real `loading` state and the result card.)
 
 - [ ] **Step 5: Add the `ConciergePreviewCard` component**
 
@@ -1672,7 +1672,7 @@ function ConciergePreviewCard({
 }
 ```
 
-Note this component's outer `GlassPanel` needs `relative` for the absolutely-positioned dismiss button to anchor correctly — `GlassPanel` already applies `relative isolate` in its own base classes (confirmed in `components/GlassPanel.tsx`), so no extra class is needed here.
+Note this component's outer `GlassPanel` needs `relative` for the absolutely-positioned dismiss button to anchor correctly. `GlassPanel` already applies `relative isolate` in its own base classes (confirmed in `components/GlassPanel.tsx`), so no extra class is needed here.
 
 - [ ] **Step 6: Type-check**
 
@@ -1689,10 +1689,10 @@ Expected: no new errors.
 Run: `npm run dev`, open `/home` at a mobile viewport (390×844).
 
 1. Type "I'm tired, have 90 minutes, don't want anything intense, and want to meet two people near campus" into the concierge box and submit. Confirm: a loading spinner shows on the send button, then the preview card appears with a venue, an explanation that names no individuals, an opener, and "Lock it in" / "Never mind" buttons.
-2. Tap "Never mind" — confirm the card dismisses and the input is still there (not cleared, so the user can edit and resubmit).
-3. Resubmit and tap "Lock it in" — confirm the existing loading → ready flow runs (the same `MatchOverlay` "Finding your people…" state) and it navigates to `/match?meetupId=...`.
-4. Type something that should be insufficient (e.g. "pub crawl with 5 people") — confirm the "No group ready yet" card shows.
-5. Confirm the existing hero (personalized line, activity chips, "Find people now" CTA, avatar-stack presence line, "Live nearby" feed) all still render and work exactly as before — this task should not have touched any of that.
+2. Tap "Never mind": confirm the card dismisses and the input is still there (not cleared, so the user can edit and resubmit).
+3. Resubmit and tap "Lock it in": confirm the existing loading → ready flow runs (the same `MatchOverlay` "Finding your people…" state) and it navigates to `/match?meetupId=...`.
+4. Type something that should be insufficient (e.g. "pub crawl with 5 people"): confirm the "No group ready yet" card shows.
+5. Confirm the existing hero (personalized line, activity chips, "Find people now" CTA, avatar-stack presence line, "Live nearby" feed) all still render and work exactly as before. This task should not have touched any of that.
 
 - [ ] **Step 9: Run the full test suite one more time**
 
@@ -1722,11 +1722,11 @@ Expected: all three stages pass. If `npm run build` fails on missing env vars in
 - [ ] **Step 2: Re-read the spec and confirm every decision is implemented**
 
 Walk `docs/superpowers/specs/2026-08-30-ai-concierge-design.md` section by section against the code:
-- Anonymized explanation (no names) — confirm in `lib/concierge/synthesize.ts`'s prompt and `templateFallback`.
-- Preview, then explicit confirm — confirm `/api/concierge` writes nothing to Supabase (no `.insert(`/`.update(` calls anywhere in `app/api/concierge/route.ts`), and "Lock it in" is the only path that calls `/api/match`.
-- Group size as a clamped hint — confirm `clampTargetSize` in the route and the `GROUP_MIN`/`GROUP_MAX` tests in Task 4.
-- Single-shot pipeline — confirm there's no follow-up-question branch anywhere in `lib/concierge/`.
-- Previewed venue is illustrative — confirm "Lock it in" never sends the previewed `placeId`/venue to `/api/match` (its body only ever contained `travelKm`/`budgetAud`/`socialEnergy`/`proposedActivity`/`availability`, unchanged).
+- Anonymized explanation (no names): confirm in `lib/concierge/synthesize.ts`'s prompt and `templateFallback`.
+- Preview, then explicit confirm: confirm `/api/concierge` writes nothing to Supabase (no `.insert(`/`.update(` calls anywhere in `app/api/concierge/route.ts`), and "Lock it in" is the only path that calls `/api/match`.
+- Group size as a clamped hint: confirm `clampTargetSize` in the route and the `GROUP_MIN`/`GROUP_MAX` tests in Task 4.
+- Single-shot pipeline: confirm there's no follow-up-question branch anywhere in `lib/concierge/`.
+- Previewed venue is illustrative: confirm "Lock it in" never sends the previewed `placeId`/venue to `/api/match` (its body only ever contained `travelKm`/`budgetAud`/`socialEnergy`/`proposedActivity`/`availability`, unchanged).
 
 - [ ] **Step 3: Report**
 

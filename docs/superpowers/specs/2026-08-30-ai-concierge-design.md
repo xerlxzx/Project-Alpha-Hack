@@ -1,4 +1,4 @@
-# AI Concierge — Design Spec
+# AI Concierge: Design Spec
 
 Date: 2026-08-30
 Status: Approved, implemented on branch `ai-concierge`
@@ -11,7 +11,7 @@ just shows a "still warming up" placeholder message. This spec covers wiring
 it to a real feature: the user types something like *"I'm tired, have 90
 minutes, don't want anything intense, and want to meet two people near
 campus"*, and the concierge interprets that, finds a real matching group and
-venue, explains why, and drafts an opening message for the group chat — all
+venue, explains why, and drafts an opening message for the group chat, all
 before committing to anything.
 
 ## Constraints from the existing codebase
@@ -28,7 +28,7 @@ before committing to anything.
   a default to relax for this feature.
 - **No second ad-hoc path** (`CLAUDE.md`): don't duplicate a mechanism that
   already exists (e.g. a second "compute a match" or "get a group profile"
-  implementation) — extract and share instead.
+  implementation), extract and share instead.
 
 ## Decisions (confirmed with the user)
 
@@ -83,45 +83,45 @@ ConciergeBox (client)
 
 ### New files
 
-- `lib/concierge/schema.ts` — `ConciergeIntentSchema`, `ConciergeSynthesisSchema` (Zod).
-- `lib/concierge/intent.ts` — `interpretIntent(text, deps)`: builds the Gemini
+- `lib/concierge/schema.ts`: `ConciergeIntentSchema`, `ConciergeSynthesisSchema` (Zod).
+- `lib/concierge/intent.ts`: `interpretIntent(text, deps)` builds the Gemini
   prompt, validates the JSON response against `ConciergeIntentSchema`. One
   retry on failure, then throws a typed error the route turns into a clear
-  "couldn't understand that, try rephrasing" response — never guesses.
-- `lib/concierge/synthesize.ts` — `synthesizeExplanation(facts, deps)`: one
+  "couldn't understand that, try rephrasing" response. Never guesses.
+- `lib/concierge/synthesize.ts`: `synthesizeExplanation(facts, deps)` runs one
   Gemini call fed *only* already-computed deterministic facts (shared-interest
   reasons, group size, venue name/reason/distance, duration, mood summary).
   Prompt explicitly forbids introducing any fact not present in the input. On
-  failure, falls back to a fixed template built directly from `facts` — this
+  failure, falls back to a fixed template built directly from `facts`. This
   step must never block the preview.
-- `lib/ai/generateJson.ts` — extraction of the small "call Gemini, parse JSON,
+- `lib/ai/generateJson.ts`: extraction of the small "call Gemini, parse JSON,
   validate against a Zod schema" helper currently inlined in
   `lib/venue-agent/agent.ts`'s `buildDefaultDeps`, so `interpretIntent` and
   `synthesizeExplanation` share it instead of re-implementing GoogleGenAI
   wiring a third time.
-- `lib/matcher/anonymize.ts` — extraction of `AnonymisedMember` and
+- `lib/matcher/anonymize.ts`: extraction of `AnonymisedMember` and
   `sharedInterestsOf` out of `app/api/match/route.ts` so `/api/concierge`
   reuses the exact same anonymization instead of a parallel copy.
-- `lib/venue-agent/groupProfile.ts` — extraction of the aggregation logic
+- `lib/venue-agent/groupProfile.ts`: extraction of the aggregation logic
   inside `app/api/venue-agent/route.ts`'s `buildGroupProfileForMeetup` into a
   pure `buildGroupProfileFromMembers(members, options)` helper. The existing
   DB-backed function becomes a thin wrapper: load rows, then call the shared
   pure helper. The concierge preview calls the same pure helper directly on
   data it already has in memory (no extra DB round-trip).
-- `app/api/concierge/route.ts` — orchestrates the flow above.
+- `app/api/concierge/route.ts`: orchestrates the flow above.
 
 ### Changed files
 
-- `lib/matcher/match.ts` — `buildMatch` gains an optional `targetSize`
+- `lib/matcher/match.ts`: `buildMatch` gains an optional `targetSize`
   parameter, clamped to `[GROUP_MIN, GROUP_MAX]`, defaulting to the current
   `GROUP_TARGET` so every existing caller is unaffected.
-- `app/api/match/route.ts` — imports `AnonymisedMember`/`sharedInterestsOf`
+- `app/api/match/route.ts`: imports `AnonymisedMember`/`sharedInterestsOf`
   from `lib/matcher/anonymize.ts` instead of defining them locally (no
   behavior change).
-- `app/api/venue-agent/route.ts` — `buildGroupProfileForMeetup` becomes a thin
+- `app/api/venue-agent/route.ts`: `buildGroupProfileForMeetup` becomes a thin
   wrapper around the new shared `buildGroupProfileFromMembers` (no behavior
   change).
-- `app/(app)/home/page.tsx` — `ConciergeBox` actually calls `/api/concierge`
+- `app/(app)/home/page.tsx`: `ConciergeBox` actually calls `/api/concierge`
   on submit; shows a loading state while the request is in flight; renders the
   returned preview as a card (reusing `GlassPanel`) with "Lock it in" (calls
   the same `startMatch` already defined on the page, with controls derived
@@ -176,7 +176,7 @@ interface ConciergePreview {
 ## Error handling
 
 - Intent interpretation fails twice → `422`-style error, UI shows "Couldn't
-  understand that — try rephrasing" with a retry action (mirrors the existing
+  understand that, try rephrasing" with a retry action (mirrors the existing
   `MatchOverlay` error state already on the page).
 - Deterministic pool insufficient → existing insufficient-state UI/copy,
   unchanged.
@@ -221,9 +221,9 @@ this branch; this file was restored to match what was actually designed,
 approved, and built here. Two points from that other design are worth
 revisiting later regardless of which implementation ships:
 - **Stale-pool race**: this implementation does not pin candidate identity
-  between preview and confirm — "Lock it in" simply re-runs the real matcher
+  between preview and confirm. "Lock it in" simply re-runs the real matcher
   fresh, so it can occasionally produce a different group than the one
-  previewed (still safe — never a bad/unsafe match, just a possible surprise).
+  previewed (still safe: never a bad/unsafe match, just a possible surprise).
 - **Group-size semantic ambiguity**: whether `GROUP_MIN`/`GROUP_TARGET`/
   `GROUP_MAX` should count candidates only (this codebase's existing,
   unchanged behavior, which this implementation preserves) or the whole group
